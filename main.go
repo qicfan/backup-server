@@ -59,11 +59,11 @@ func main() {
 
 func initUploadDir() {
 	// 启动时判断并创建上传根目录
-	if _, err := os.Stat(controllers.UPLOAD_ROOT_DIR); os.IsNotExist(err) {
-		if err := os.MkdirAll(controllers.UPLOAD_ROOT_DIR, 0755); err != nil {
+	if _, err := os.Stat(helpers.UPLOAD_ROOT_DIR); os.IsNotExist(err) {
+		if err := os.MkdirAll(helpers.UPLOAD_ROOT_DIR, 0755); err != nil {
 			helpers.AppLogger.Errorf("Failed to create upload root dir: %v\n", err)
 		} else {
-			helpers.AppLogger.Infof("Created upload root dir: %s\n", controllers.UPLOAD_ROOT_DIR)
+			helpers.AppLogger.Infof("Created upload root dir: %s\n", helpers.UPLOAD_ROOT_DIR)
 		}
 	}
 }
