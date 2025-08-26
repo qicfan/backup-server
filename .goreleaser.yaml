@@ -1,0 +1,83 @@
+version: 2
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+
+builds:
+  - main: ./main.go
+    binary: BACKUP-SERVER
+    ldflags:
+      - -s -w -X 'main.Version={{ .Version }}' -X 'main.PublishDate={{ .Date }}'
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    goamd64:
+      - "v1"
+dockers:
+  - image_templates:
+      - "qicfan/backup-server:latest-amd64"
+      - "qicfan/backup-server:{{ .Tag }}-amd64"
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64"
+    extra_files:
+      - web_statics/
+    goarch: amd64
+    goamd64: "v1"
+
+  - image_templates:
+      - "qicfan/backup-server:latest-arm64"
+      - "qicfan/backup-server:{{ .Tag }}-arm64"
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64"
+    extra_files:
+      - web_statics/
+    goarch: arm64
+    use: buildx
+
+docker_manifests:
+  - name_template: "qicfan/backup-server:{{ .Tag }}"
+    image_templates:
+      - "qicfan/backup-server:{{ .Tag }}-amd64"
+      - "qicfan/backup-server:{{ .Tag }}-arm64"
+  - name_template: "qicfan/backup-server:latest"
+    image_templates:
+      - "qicfan/backup-server:latest-amd64"
+      - "qicfan/backup-server:latest-arm64"
+
+archives:
+  - formats: [tar.gz]
+    # this name template makes the OS and Arch compatible with the results of `uname`.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # use zip for windows archives
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+release:
+  github:
+    owner: qicfan
+    name: backup-server
+  draft: false
+  
