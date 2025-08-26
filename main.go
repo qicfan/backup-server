@@ -9,6 +9,7 @@ import (
 
 	"github.com/qicfan/backup-server/controllers"
 	"github.com/qicfan/backup-server/helpers"
+	"github.com/qicfan/backup-server/models"
 
 	"github.com/gin-gonic/gin"
 	ginlogrus "github.com/toorop/gin-logrus"
@@ -25,6 +26,7 @@ func main() {
 	initUploadDir()
 	helpers.InitDb()                // 初始化数据库组件
 	helpers.CleanupUploadingFiles() // 清理所有未完成的上传临时文件
+	models.InitCron()               // 初始化定时任务
 	r := gin.New()
 	r.Use(ginlogrus.Logger(logger), gin.Recovery())
 	api := r.Group("/api")

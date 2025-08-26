@@ -30,6 +30,13 @@ func (p *Photo) FullPath() string {
 	return filepath.Join(helpers.UPLOAD_ROOT_DIR, p.Path)
 }
 
+// 更新照片信息
+func (p *Photo) Update() error {
+	return helpers.EnqueueDBWriteSync(func(db *gorm.DB) error {
+		return db.Save(p).Error
+	})
+}
+
 // 插入一张照片
 func InsertPhoto(name string, path string, size int64, photoType PhotoType, livePhotoVideoPath string) error {
 	photo := Photo{

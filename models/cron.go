@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"sync"
+
 	"github.com/qicfan/backup-server/helpers"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
@@ -37,9 +39,14 @@ func isVideo(ext string) bool {
 }
 
 var GlobalCron *cron.Cron
+var refreshPhotoCollectionLock sync.Mutex
 
 func RefreshPhotoCollection() {
-	// TODO: 实现照片集合的刷新逻辑
+	if !refreshPhotoCollectionLock.TryLock() {
+		helpers.AppLogger.Warn("RefreshPhotoCollection 正在执行，跳过本次调度")
+		return
+	}
+	defer refreshPhotoCollectionLock.Unlock()
 	filepath.Walk(helpers.UPLOAD_ROOT_DIR, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
@@ -79,7 +86,12 @@ func RefreshPhotoCollection() {
 			}
 			if photoGetErr == nil && photo != nil {
 				// 记录存在，检查是否需要更新
-
+				if photo.Type != photoType || photo.LivePhotoVideoPath != livePhotoVideoPath {
+					helpers.AppLogger.Infof("%s 数据库记录需要更新: %d => %d", relPath, photo.Type, photoType)
+					photo.Type = photoType
+					photo.LivePhotoVideoPath = livePhotoVideoPath
+					photo.Update()
+				}
 			}
 		}
 		return nil
