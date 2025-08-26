@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"net/http"
 	"os"
 	"path/filepath"
 )
@@ -26,4 +27,20 @@ func CleanupUploadingFiles() {
 	if err != nil {
 		AppLogger.Error("递归读取目录时发生错误:", err)
 	}
+}
+
+// GetFileMIME 返回文件的 MIME 类型
+func GetFileMIME(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	buf := make([]byte, 512)
+	n, err := f.Read(buf)
+	if err != nil {
+		return "", err
+	}
+	mimeType := http.DetectContentType(buf[:n])
+	return mimeType, nil
 }

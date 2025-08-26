@@ -3,6 +3,9 @@ FROM alpine:latest
 # 设置时区
 ENV TZ=Asia/Shanghai
 ENV PATH=/app:$PATH
+# 安装依赖
+RUN apk add --update ffmpeg
+
 # 设置工作目录
 WORKDIR /app
 # 创建必要的目录

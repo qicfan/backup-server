@@ -8,10 +8,9 @@
 - 可以识别华为和苹果的动态照片
 - 鸿蒙客户端可以下载苹果和华为的动态照片并导入相册
 - 客户端访问照片列表时默认返回缩略图，缩略图会缓存下来供下次使用
-- 视频不会显示缩略图，由客户端负责渲染一个首帧画面展示在列表中
 
 
-## 使用 Docker命令 构建容器
+## 使用 Docker命令 部署
 
 ```bash
 docker run -d \
@@ -38,7 +37,6 @@ docker run -d \
 `docker-compose.yml`，内容如下：
 
 ```yaml
-version: '3.8'
 services:
 	backup-server:
 		image: qicfan/backup-server:latest

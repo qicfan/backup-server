@@ -1,7 +1,14 @@
 package controllers
 
+type APIResponseCode int
+
+const (
+	Success APIResponseCode = iota
+	BadRequest
+)
+
 type APIResponse[T any] struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-	Data    T      `json:"data"`
+	Code    APIResponseCode `json:"code"`
+	Message string          `json:"message"`
+	Data    T               `json:"data"`
 }

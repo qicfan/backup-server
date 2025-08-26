@@ -34,6 +34,8 @@ func main() {
 	api.POST("/exists", controllers.HandleExists)
 	api.POST("/listdir", controllers.HandleListDir)
 	api.POST("/createdir", controllers.HandleCreateDir)
+	photoApi := r.Group("/photo")
+	photoApi.GET("/thumbnail/:path/:size", controllers.HandleGetThumbnail)
 	r.GET("/upload", controllers.HandleUpload)
 	port := os.Getenv("PORT")
 	if port == "" {

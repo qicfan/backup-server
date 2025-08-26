@@ -100,7 +100,7 @@ func HandleUpload(c *gin.Context) {
 					helpers.AppLogger.Error("照片写入数据库错误:", err)
 				}
 				// 通知客户端上传完成
-				resp := map[string]interface{}{"code": 0, "message": "上传完成", "data": map[string]string{"path": chunk.FileName}}
+				resp := map[string]interface{}{"code": Success, "message": "上传完成", "data": map[string]string{"path": chunk.FileName}}
 				msg, _ := json.Marshal(resp)
 				_ = conn.WriteMessage(websocket.TextMessage, msg)
 			}
