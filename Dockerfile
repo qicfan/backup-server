@@ -5,6 +5,7 @@ ENV TZ=Asia/Shanghai
 ENV PATH=/app:$PATH
 # 安装依赖
 RUN apk add --update ffmpeg
+RUN apk add --update imagemagick
 
 # 设置工作目录
 WORKDIR /app

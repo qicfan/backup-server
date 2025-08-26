@@ -24,10 +24,18 @@ func Thumbnail(path, thumbnailPath string, width int, height int) error {
 
 // HeicToJpg 将 HEIC 图片转为 JPG 格式
 func HEICToJPG(inputPath, outputPath string) error {
-	cmd := exec.Command("ffmpeg", "-y", "-i", inputPath, outputPath)
+	// 检查ImageMagick是否安装
+	if _, err := exec.LookPath("convert"); err != nil {
+		return fmt.Errorf("ImageMagick未安装: %v", err)
+	}
+
+	// 执行转换命令
+	cmd := exec.Command("convert", inputPath, outputPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("ffmpeg 转换失败: %v, 输出: %s", err, string(output))
+		return fmt.Errorf("转换失败: %v, 输出: %s", err, string(output))
 	}
+
+	fmt.Printf("转换成功: %s -> %s\n", inputPath, outputPath)
 	return nil
 }
