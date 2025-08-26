@@ -22,25 +22,31 @@ type LoginResponse struct {
 func HandleLogin(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request"})
+		c.JSON(200, APIResponse[interface{}]{Code: 1, Message: "参数错误", Data: nil})
 		return
 	}
 	envUser := os.Getenv("USERNAME")
+	if envUser == "" {
+		envUser = "admin"
+	}
 	envPass := os.Getenv("PASSWORD")
+	if envPass == "" {
+		envPass = "admin"
+	}
 	if req.Username != envUser || req.Password != envPass {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		c.JSON(200, APIResponse[interface{}]{Code: 1, Message: "用户名或密码错误", Data: nil})
 		return
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": req.Username,
-		"exp":      jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		"exp":      jwt.NewNumericDate(time.Now().Add(365 * 24 * time.Hour)),
 	})
 	tokenString, err := token.SignedString(jwtSecret)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Token generation error"})
+		c.JSON(200, APIResponse[interface{}]{Code: 1, Message: "Token生成失败", Data: nil})
 		return
 	}
-	c.JSON(200, LoginResponse{Token: tokenString})
+	c.JSON(200, APIResponse[map[string]string]{Code: 0, Message: "", Data: map[string]string{"token": tokenString}})
 }
 
 func ValidateJWT(tokenString string) error {

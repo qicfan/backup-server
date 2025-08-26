@@ -9,10 +9,20 @@ import (
 	"sync"
 
 	"github.com/qicfan/backup-server/helpers"
+	"github.com/qicfan/backup-server/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
+
+type FileChunk struct {
+	FileName           string           `json:"fileName"`              // 相对路径，包含文件名：2025/8/25/a.jpg
+	Type               models.PhotoType `json:"type"`                  // 照片类型，1-普通照片，2-视频， 3-动态照片
+	LivePhotoVideoPath string           `json:"live_photo_video_path"` // 如果是动态照片，这里存储视频的路径，只有动态照片中的图片会保存该字段，如果是动态照片的视频则该字段为空
+	ChunkIndex         int              `json:"chunkIndex"`
+	Data               []byte           `json:"data"`
+	IsLast             bool             `json:"isLast"`
+}
 
 var fileLocks sync.Map
 var upgrader = websocket.Upgrader{
@@ -47,13 +57,15 @@ func HandleUpload(c *gin.Context) {
 			helpers.AppLogger.Error("Unmarshal error:", err)
 			continue
 		}
-		relPath := filepath.Base(chunk.FileName)
-		targetPath := filepath.Join(UPLOAD_ROOT_DIR, relPath)
-		tempFileName := targetPath + ".uploading"
+		relPath := filepath.Dir(chunk.FileName)
+		fileName := filepath.Base(chunk.FileName)
+		targetPath := filepath.Join(helpers.UPLOAD_ROOT_DIR, relPath)
+		targetFile := filepath.Join(targetPath, fileName)
+		tempFileName := targetFile + ".uploading"
 		lock, _ := fileLocks.LoadOrStore(tempFileName, &sync.Mutex{})
 		mu := lock.(*sync.Mutex)
 		mu.Lock()
-		if err := os.MkdirAll(UPLOAD_ROOT_DIR, 0755); err != nil {
+		if err := os.MkdirAll(targetPath, 0755); err != nil {
 			helpers.AppLogger.Error("MkdirAll error:", err)
 			mu.Unlock()
 			continue
@@ -77,30 +89,22 @@ func HandleUpload(c *gin.Context) {
 		f.Close()
 		mu.Unlock()
 		if chunk.IsLast {
-			if err := os.Rename(tempFileName, targetPath); err != nil {
+			if err := os.Rename(tempFileName, targetFile); err != nil {
 				helpers.AppLogger.Error("Rename error:", err)
 			} else {
-				helpers.AppLogger.Infof("File %s upload complete.", targetPath)
+				helpers.AppLogger.Infof("File %s upload complete.", targetFile)
+				// 插入数据库
+				photoType := chunk.Type
+				livePhotoVideoPath := chunk.LivePhotoVideoPath
+				if err := models.InsertPhoto(fileName, targetFile, int64(len(chunk.Data)), photoType, livePhotoVideoPath); err != nil {
+					helpers.AppLogger.Error("照片写入数据库错误:", err)
+				}
+				// 通知客户端上传完成
+				resp := map[string]interface{}{"code": 0, "message": "上传完成", "data": map[string]string{"path": chunk.FileName}}
+				msg, _ := json.Marshal(resp)
+				_ = conn.WriteMessage(websocket.TextMessage, msg)
 			}
 			fileLocks.Delete(tempFileName)
-		}
-	}
-}
-
-func CleanupUploadingFiles() {
-	entries, err := os.ReadDir(".")
-	if err != nil {
-		helpers.AppLogger.Error("ReadDir error:", err)
-		return
-	}
-	for _, entry := range entries {
-		if entry.Type().IsRegular() && len(entry.Name()) > 9 && entry.Name()[len(entry.Name())-9:] == ".uploading" {
-			err := os.Remove(entry.Name())
-			if err != nil {
-				helpers.AppLogger.Errorf("Failed to remove temp file %s: %v", entry.Name(), err)
-			} else {
-				helpers.AppLogger.Infof("Removed temp file: %s", entry.Name())
-			}
 		}
 	}
 }

@@ -1,18 +1,20 @@
 package helpers
 
 import (
+	"io"
 	"os"
+	"path/filepath"
 
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	"github.com/sirupsen/logrus"
 )
 
-var AppLogger = newLogger()
+var AppLogger *logrus.Logger
 
-func newLogger() *logrus.Logger {
+func NewLogger(logFileName string) *logrus.Logger {
 	logger := logrus.New()
-	logDir := "config/logs"
-	logFile := logDir + "/app.log"
+	logDir := filepath.Join(RootDir, "config", "logs")
+	logFile := filepath.Join(logDir, logFileName)
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		logger.Warnf("Failed to create log dir: %v", err)
 	}
@@ -25,7 +27,8 @@ func newLogger() *logrus.Logger {
 	if err != nil {
 		logger.Warnf("Failed to create rotatelogs: %v", err)
 	} else {
-		logger.SetOutput(writer)
+		// 同时写入文件和控制台
+		logger.SetOutput(io.MultiWriter(writer, os.Stdout))
 	}
 	return logger
 }

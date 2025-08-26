@@ -3,54 +3,47 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/qicfan/backup-server/controllers"
+	"github.com/qicfan/backup-server/helpers"
 
 	"github.com/gin-gonic/gin"
-	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
-	"github.com/sirupsen/logrus"
 	ginlogrus "github.com/toorop/gin-logrus"
 )
 
+var Version string = "v0.0.1"
+var PublishDate string = "2025-08-26"
+var IsRelease bool = false
+
 func main() {
-	controllers.CleanupUploadingFiles()
-	// 启动时判断并创建上传根目录
-	if _, err := os.Stat(controllers.UPLOAD_ROOT_DIR); os.IsNotExist(err) {
-		if err := os.MkdirAll(controllers.UPLOAD_ROOT_DIR, 0755); err != nil {
-			fmt.Printf("Failed to create upload root dir: %v\n", err)
-		} else {
-			fmt.Printf("Created upload root dir: %s\n", controllers.UPLOAD_ROOT_DIR)
-		}
-	}
-	logger := logrus.New()
-	logDir := "config/logs"
-	logFile := logDir + "/web.log"
-	if err := os.MkdirAll(logDir, 0755); err != nil {
-		fmt.Printf("Failed to create log dir: %v\n", err)
-	}
-	writer, err := rotatelogs.New(
-		logFile+".%Y%m%d%H%M",
-		rotatelogs.WithLinkName(logFile),
-		rotatelogs.WithRotationSize(1*1024*1024), // 1MB
-		rotatelogs.WithRotationCount(5),
-	)
-	if err != nil {
-		fmt.Printf("Failed to create rotatelogs: %v\n", err)
-	} else {
-		logger.SetOutput(writer)
-	}
+	getRootDir()
+	logger := helpers.NewLogger("web.log")
+	helpers.AppLogger = helpers.NewLogger("app.log")
+	initUploadDir()
+	helpers.InitDb()                // 初始化数据库组件
+	helpers.CleanupUploadingFiles() // 清理所有未完成的上传临时文件
 	r := gin.New()
 	r.Use(ginlogrus.Logger(logger), gin.Recovery())
-	r.POST("/login", controllers.HandleLogin)
-	r.POST("/exists", controllers.HandleExists)
-	r.POST("/listdir", controllers.HandleListDir)
+	api := r.Group("/api")
+	api.POST("/login", controllers.HandleLogin)
+	api.POST("/exists", controllers.HandleExists)
+	api.POST("/listdir", controllers.HandleListDir)
+	api.POST("/createdir", controllers.HandleCreateDir)
 	r.GET("/upload", controllers.HandleUpload)
-	fmt.Println("WebSocket server started at :8080 (SSL supported)")
-	certFile := "config/server.crt"
-	keyFile := "config/server.key"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "12334"
+	}
+	addr := ":" + port
+	fmt.Printf("WebSocket server started at %s (SSL supported)\n", addr)
+	certFile := filepath.Join(helpers.RootDir, "config", "server.crt")
+	keyFile := filepath.Join(helpers.RootDir, "config", "server.key")
 	if _, err := os.Stat(certFile); err == nil {
 		if _, err := os.Stat(keyFile); err == nil {
-			err := r.RunTLS(":8080", certFile, keyFile)
+			err := r.RunTLS(addr, certFile, keyFile)
 			if err != nil {
 				fmt.Println("ListenAndServeTLS error:", err)
 			}
@@ -58,8 +51,47 @@ func main() {
 		}
 	}
 	// 没有证书则回退到普通 HTTP
-	weberr := r.Run(":8080")
+	weberr := r.Run(addr)
 	if weberr != nil {
 		fmt.Println("ListenAndServe error:", weberr)
 	}
+}
+
+func initUploadDir() {
+	// 启动时判断并创建上传根目录
+	if _, err := os.Stat(controllers.UPLOAD_ROOT_DIR); os.IsNotExist(err) {
+		if err := os.MkdirAll(controllers.UPLOAD_ROOT_DIR, 0755); err != nil {
+			helpers.AppLogger.Errorf("Failed to create upload root dir: %v\n", err)
+		} else {
+			helpers.AppLogger.Infof("Created upload root dir: %s\n", controllers.UPLOAD_ROOT_DIR)
+		}
+	}
+}
+
+func checkRelease() {
+	arg1 := strings.ToLower(os.Args[0])
+	fmt.Printf("arg1=%s\n", arg1)
+	name := strings.ToLower(filepath.Base(arg1))
+	IsRelease = strings.Index(name, "backup-server") == 0 && !strings.Contains(arg1, "go-build")
+}
+
+func getRootDir() string {
+	var exPath string = "/app" // 默认使用docker的路径
+	checkRelease()
+	fmt.Printf("isRelease=%v\n", IsRelease)
+	if IsRelease {
+		ex, err := os.Executable()
+		if err != nil {
+			panic(err)
+		}
+		exPath = filepath.Dir(ex)
+	} else {
+		if runtime.GOOS == "windows" {
+			exPath = "D:\\Dev\\backup-server"
+		} else {
+			exPath = "/home/samba/shares/dev/backup-server"
+		}
+	}
+	helpers.RootDir = exPath // 获取当前工作目录
+	return exPath
 }

@@ -1,3 +1,7 @@
 package controllers
 
-const UPLOAD_ROOT_DIR = "/upload"
+type APIResponse[T any] struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    T      `json:"data"`
+}
