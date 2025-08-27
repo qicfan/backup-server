@@ -14,9 +14,9 @@ import (
 )
 
 type DownloadQuery struct {
-	Path string `form:"path"` // 相对路径
-	Cos  string `form:"cos"`  // 客户端操作系统
-	Live int    `form:"live"` // 是否为动态照片
+	Path string `json:"path" form:"path"` // 相对路径
+	Cos  string `json:"cos" form:"cos"`   // 客户端操作系统
+	Live int    `json:"live" form:"live"` // 是否为动态照片
 }
 
 // 查询图片的的缩略图，构造一个请求
@@ -161,23 +161,23 @@ func HandlePhotoList(c *gin.Context) {
 }
 
 type PhotoUpdateRequest struct {
-	Path    string `json:"path"`
-	FileUri string `json:"fileUri"`
-	Mtime   int64  `json:"mtime"`
-	Ctime   int64  `json:"ctime"`
+	Path    string `json:"path" form:"path" binding:"required"`
+	FileUri string `json:"fileUri" form:"fileUri" binding:"required"`
+	Mtime   int64  `json:"mtime" form:"mtime" binding:"required"`
+	Ctime   int64  `json:"ctime" form:"ctime" binding:"required"`
 }
 
 func HandlePhotoUpdate(c *gin.Context) {
 	var req PhotoUpdateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		helpers.AppLogger.Errorf("请求参数绑定失败: %v", err)
-		c.JSON(400, APIResponse[any]{Code: BadRequest, Message: "请求参数错误", Data: nil})
+		c.JSON(400, APIResponse[any]{Code: BadRequest, Message: "请求参数错误: " + err.Error(), Data: nil})
 		return
 	}
 	photo, err := models.GetPhotoByPath(req.Path)
 	if err != nil {
 		helpers.AppLogger.Errorf("查询照片失败: %v", err)
-		c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "查询照片失败", Data: nil})
+		c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "查询照片失败: " + err.Error(), Data: nil})
 		return
 	}
 	photo.FileURI = req.FileUri
@@ -185,7 +185,7 @@ func HandlePhotoUpdate(c *gin.Context) {
 	photo.CTime = req.Ctime
 	if err := photo.Update(); err != nil {
 		helpers.AppLogger.Errorf("更新照片失败: %v", err)
-		c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "更新照片失败", Data: nil})
+		c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "更新照片失败: " + err.Error(), Data: nil})
 		return
 	}
 	c.JSON(200, APIResponse[any]{Code: Success, Message: "更新成功", Data: nil})
