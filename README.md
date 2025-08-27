@@ -39,20 +39,20 @@ docker run -d \
 `docker-compose.yml`，内容如下：
 
 ```yaml
-services:RTF
-	backup-server:
-		image: qicfan/backup-server:latest
-		container_name: backup-server
-		ports:
-			- "12334:12334"
-		environment:
-			- USERNAME=admin
-			- PASSWORD=admin
-			- PORT=12334
-		volumes:
-			- /your/upload/dir:/upload
-			- /your/config/dir:/app/config
-		restart: unless-stopped
+services:
+  backup-server:
+    image: qicfan/backup-server:latest
+    container_name: backup-server
+    ports:
+      - "12334:12334"
+    environment:
+      - USERNAME=admin
+      - PASSWORD=admin
+      - PORT=12334
+    volumes:
+      - /your/upload/dir:/upload
+      - /your/config/dir:/app/config
+    restart: unless-stopped
 ```
 
 如需启用 SSL，请将证书文件（server.crt 和 server.key）放入 `/app/config`，然后用证书对应的域名访问即可。
