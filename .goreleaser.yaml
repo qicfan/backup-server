@@ -28,8 +28,6 @@ dockers:
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
-    extra_files:
-      - web_statics/
     goarch: amd64
     goamd64: "v1"
 
@@ -39,8 +37,6 @@ dockers:
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
-    extra_files:
-      - web_statics/
     goarch: arm64
     use: buildx
 
