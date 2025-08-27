@@ -2,4 +2,13 @@ package helpers
 
 var RootDir string = ""
 
-const UPLOAD_ROOT_DIR = "/upload"
+var UPLOAD_ROOT_DIR = "/upload"
+
+type ClientOS string
+
+const (
+	UNKNOW  ClientOS = ""
+	HMOS    ClientOS = "HMOS"
+	ANDROID ClientOS = "ANDROID"
+	IOS     ClientOS = "IOS"
+)

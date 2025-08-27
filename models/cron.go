@@ -12,32 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	ImageExtensions = []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
-	VideoExtensions = []string{".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm"}
-	UPLOAD_ROOT_DIR = "/path/to/upload/root" // 请根据实际情况修改
-)
-
-func isImage(ext string) bool {
-	ext = strings.ToLower(ext)
-	for _, e := range ImageExtensions {
-		if ext == e {
-			return true
-		}
-	}
-	return false
-}
-
-func isVideo(ext string) bool {
-	ext = strings.ToLower(ext)
-	for _, e := range VideoExtensions {
-		if ext == e {
-			return true
-		}
-	}
-	return false
-}
-
 var GlobalCron *cron.Cron
 var refreshPhotoCollectionLock sync.Mutex
 
@@ -54,6 +28,7 @@ func RefreshPhotoCollection() {
 		relPath := strings.TrimPrefix(path, helpers.UPLOAD_ROOT_DIR)
 		name := info.Name()
 		var livePhotoVideoPath string = ""
+		var livePhotoVideoFullPath string = ""
 		var photoType PhotoType = PhotoTypeNormal
 		// 查找是否有同名的视频文件
 		ext := strings.ToLower(filepath.Ext(name))
@@ -61,25 +36,26 @@ func RefreshPhotoCollection() {
 		// 处理苹果的动态图片
 		if ext == ".heic" {
 			// 查询是否有同名的.mov文件
-			movPath := baseName + ".mov"
-			livePhotoVideoPath = strings.TrimPrefix(movPath, helpers.UPLOAD_ROOT_DIR)
+			livePhotoVideoFullPath := baseName + ".mov"
+			livePhotoVideoPath = strings.TrimPrefix(strings.TrimPrefix(livePhotoVideoFullPath, helpers.UPLOAD_ROOT_DIR), "/")
 		}
-		if isImage(ext) {
+		if helpers.IsImage(ext) {
 			// 查找是否有同名的mp4文件
-			mp4Path := baseName + ".mp4"
-			livePhotoVideoPath = strings.TrimPrefix(mp4Path, helpers.UPLOAD_ROOT_DIR)
+			livePhotoVideoFullPath := baseName + ".mp4"
+			livePhotoVideoPath = strings.TrimPrefix(strings.TrimPrefix(livePhotoVideoFullPath, helpers.UPLOAD_ROOT_DIR), "/")
 		}
-		_, statErr := os.Stat(livePhotoVideoPath)
-		if livePhotoVideoPath != "" && statErr == nil {
+		if livePhotoVideoPath != "" && helpers.FileExists(livePhotoVideoFullPath) {
 			photoType = PhotoTypeLivePhoto
 		}
-		if isImage(ext) || isVideo(ext) {
+		if helpers.IsImage(ext) || helpers.IsVideo(ext) {
 			// 查询数据库是否存在
 			photo, photoGetErr := GetPhotoByPath(relPath)
 			if photoGetErr != nil && photoGetErr != gorm.ErrRecordNotFound {
 				// 没有找到记录，插入
 				helpers.AppLogger.Errorf("%s 没有数据库记录，准备插入: ", relPath)
-				if insertErr := InsertPhoto(name, relPath, info.Size(), photoType, livePhotoVideoPath); insertErr != nil {
+				// 读取文件的修改时间
+				modificationTime := info.ModTime().Unix()
+				if insertErr := InsertPhoto(name, relPath, info.Size(), photoType, livePhotoVideoPath, "", modificationTime, modificationTime); insertErr != nil {
 					helpers.AppLogger.Error("插入数据库失败: ", insertErr)
 				}
 				return nil

@@ -35,7 +35,10 @@ func main() {
 	api.POST("/listdir", controllers.HandleListDir)
 	api.POST("/createdir", controllers.HandleCreateDir)
 	photoApi := r.Group("/photo")
-	photoApi.GET("/thumbnail/:path/:size", controllers.HandleGetThumbnail)
+	photoApi.GET("/thumbnail/:path/:size", controllers.HandleGetThumbnail) // 缩略图查看
+	photoApi.GET("/download", controllers.HandlePhotoDownload)             // 文件下载
+	photoApi.POST("/list", controllers.HandlePhotoList)                    // 照片列表
+	photoApi.POST("/update", controllers.HandlePhotoUpdate)                // 照片信息更新
 	r.GET("/upload", controllers.HandleUpload)
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -45,14 +48,12 @@ func main() {
 	fmt.Printf("WebSocket server started at %s (SSL supported)\n", addr)
 	certFile := filepath.Join(helpers.RootDir, "config", "server.crt")
 	keyFile := filepath.Join(helpers.RootDir, "config", "server.key")
-	if _, err := os.Stat(certFile); err == nil {
-		if _, err := os.Stat(keyFile); err == nil {
-			err := r.RunTLS(addr, certFile, keyFile)
-			if err != nil {
-				fmt.Println("ListenAndServeTLS error:", err)
-			}
-			return
+	if helpers.FileExists(certFile) && helpers.FileExists(keyFile) {
+		err := r.RunTLS(addr, certFile, keyFile)
+		if err != nil {
+			fmt.Println("ListenAndServeTLS error:", err)
 		}
+		return
 	}
 	// 没有证书则回退到普通 HTTP
 	weberr := r.Run(addr)
@@ -63,7 +64,7 @@ func main() {
 
 func initUploadDir() {
 	// 启动时判断并创建上传根目录
-	if _, err := os.Stat(helpers.UPLOAD_ROOT_DIR); os.IsNotExist(err) {
+	if !helpers.FileExists(helpers.UPLOAD_ROOT_DIR) {
 		if err := os.MkdirAll(helpers.UPLOAD_ROOT_DIR, 0755); err != nil {
 			helpers.AppLogger.Errorf("Failed to create upload root dir: %v\n", err)
 		} else {
@@ -97,5 +98,12 @@ func getRootDir() string {
 		}
 	}
 	helpers.RootDir = exPath // 获取当前工作目录
+	if !IsRelease {
+		if runtime.GOOS == "windows" {
+			helpers.UPLOAD_ROOT_DIR = "D:\\Dev\\backup-server\\config\\upload"
+		} else {
+			helpers.UPLOAD_ROOT_DIR = "/home/samba/shares/dev/backup-server/config/upload"
+		}
+	}
 	return exPath
 }

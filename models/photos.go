@@ -3,6 +3,7 @@ package models
 import (
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/qicfan/backup-server/helpers"
 	"gorm.io/gorm"
@@ -23,6 +24,12 @@ type Photo struct {
 	Size               int64     `json:"size"`                  // 照片大小
 	Type               PhotoType `json:"type"`                  // 照片类型，1-普通照片，2-视频， 3-动态照片
 	LivePhotoVideoPath string    `json:"live_photo_video_path"` // 如果是动态照片，这里存储视频的路径，只有动态照片中的图片会保存该字段，如果是动态照片的视频则该字段为空
+	FileURI            string    `json:"fileUri"`               // 鸿蒙系统的照片资源的URI，可以用来查询照片是否存在，如果有这个字段代表本地存在该照片
+	MTime              int64     `json:"mtime"`                 // 照片的最后修改时间，Unix时间戳，单位秒
+	CTime              int64     `json:"ctime"`                 // 照片的创建时间，Unix时间戳，单位秒
+	Pre512SHA256       string    `json:"pre512"`                // 照片的前512位SHA256哈希值，用来供客户端对大文件进行是否存在判断
+	Last512SHA256      string    `json:"last512"`               // 照片的后512位SHA256哈希值，用来供客户端对大文件进行是否存在判断
+	Sha256             string    `json:"sha256"`                // 照片的SHA256哈希值，用来判定照片的唯一性
 }
 
 // 返回绝对路径
@@ -38,18 +45,27 @@ func (p *Photo) Update() error {
 }
 
 // 插入一张照片
-func InsertPhoto(name string, path string, size int64, photoType PhotoType, livePhotoVideoPath string) error {
+func InsertPhoto(name string, path string, size int64, photoType PhotoType, livePhotoVideoPath string, fileUri string, mtime int64, ctime int64) error {
+	if mtime == 0 {
+		mtime = time.Now().Unix()
+	}
+	if ctime == 0 {
+		ctime = time.Now().Unix()
+	}
 	photo := Photo{
 		Name:               name,
 		Path:               path,
 		Size:               size,
 		Type:               photoType,
 		LivePhotoVideoPath: livePhotoVideoPath,
+		FileURI:            fileUri,
+		MTime:              mtime,
+		CTime:              ctime,
 	}
 	fullPath := photo.FullPath()
-	if _, statErr := os.Stat(fullPath); statErr != nil {
+	if !helpers.FileExists(fullPath) {
 		// 文件不存在
-		return statErr
+		return os.ErrNotExist
 	}
 	return helpers.EnqueueDBWriteSync(func(db *gorm.DB) error {
 		return db.Create(&photo).Error
@@ -60,6 +76,15 @@ func InsertPhoto(name string, path string, size int64, photoType PhotoType, live
 func GetPhotoByPath(path string) (*Photo, error) {
 	var photo Photo
 	if err := helpers.Db.Where("path = ?", path).First(&photo).Error; err != nil {
+		return nil, err
+	}
+	return &photo, nil
+}
+
+// 通过fileUri查找照片
+func GetPhotoByFileUri(fileUri string) (*Photo, error) {
+	var photo Photo
+	if err := helpers.Db.Where("file_uri = ?", fileUri).First(&photo).Error; err != nil {
 		return nil, err
 	}
 	return &photo, nil
@@ -83,4 +108,13 @@ func DeletePhotoByPath(path string) error {
 		return err
 	}
 	return nil
+}
+
+// 查询照片列表
+func ListPhotos(page int, pageSize int) ([]*Photo, error) {
+	var photos []*Photo
+	if err := helpers.Db.Offset((page-1)*pageSize).Limit(pageSize).Where("type <> ? OR (type=? AND live_photo_video_path != '')", PhotoTypeLivePhoto, PhotoTypeLivePhoto).Order("mtime DESC").Find(&photos).Error; err != nil {
+		return nil, err
+	}
+	return photos, nil
 }

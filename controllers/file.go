@@ -71,8 +71,7 @@ func HandleExists(c *gin.Context) {
 		c.JSON(200, APIResponse[any]{Code: BadRequest, Message: "参数错误", Data: nil})
 		return
 	}
-	_, err := os.Stat(req.Path)
-	exists := err == nil
+	exists := helpers.FileExists(req.Path)
 	c.JSON(200, APIResponse[map[string]bool]{Code: Success, Message: "", Data: map[string]bool{"exists": exists}})
 }
 
