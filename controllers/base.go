@@ -29,7 +29,7 @@ type LoginUser struct {
 	jwt.RegisteredClaims
 }
 
-var jwtSecret = []byte("your-secret-key")
+var jwtSecret = []byte("backup-server-2508270000")
 
 // JWTAuthMiddleware 基于JWT的认证中间件--验证用户是否登录
 func JWTAuthMiddleware() func(c *gin.Context) {
