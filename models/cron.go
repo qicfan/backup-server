@@ -25,7 +25,7 @@ func RefreshPhotoCollection() {
 		if err != nil || info.IsDir() {
 			return nil
 		}
-		relPath := strings.TrimPrefix(path, helpers.UPLOAD_ROOT_DIR)
+		relPath := strings.TrimPrefix(strings.TrimPrefix(path, helpers.UPLOAD_ROOT_DIR), string(os.PathSeparator))
 		name := info.Name()
 		var livePhotoVideoPath string = ""
 		var livePhotoVideoFullPath string = ""
@@ -36,21 +36,20 @@ func RefreshPhotoCollection() {
 		// 处理苹果的动态图片
 		if ext == ".heic" {
 			// 查询是否有同名的.mov文件
-			livePhotoVideoFullPath := baseName + ".mov"
-			livePhotoVideoPath = strings.TrimPrefix(strings.TrimPrefix(livePhotoVideoFullPath, helpers.UPLOAD_ROOT_DIR), "/")
+			livePhotoVideoFullPath = baseName + ".mov"
 		}
 		if helpers.IsImage(ext) {
 			// 查找是否有同名的mp4文件
-			livePhotoVideoFullPath := baseName + ".mp4"
-			livePhotoVideoPath = strings.TrimPrefix(strings.TrimPrefix(livePhotoVideoFullPath, helpers.UPLOAD_ROOT_DIR), "/")
+			livePhotoVideoFullPath = baseName + ".mp4"
 		}
-		if livePhotoVideoPath != "" && helpers.FileExists(livePhotoVideoFullPath) {
+		if livePhotoVideoFullPath != "" && helpers.FileExists(livePhotoVideoFullPath) {
 			photoType = PhotoTypeLivePhoto
+			livePhotoVideoPath = strings.TrimPrefix(strings.TrimPrefix(livePhotoVideoFullPath, helpers.UPLOAD_ROOT_DIR), string(os.PathSeparator))
 		}
 		if helpers.IsImage(ext) || helpers.IsVideo(ext) {
 			// 查询数据库是否存在
 			photo, photoGetErr := GetPhotoByPath(relPath)
-			if photoGetErr != nil && photoGetErr != gorm.ErrRecordNotFound {
+			if photoGetErr != nil && photoGetErr == gorm.ErrRecordNotFound {
 				// 没有找到记录，插入
 				helpers.AppLogger.Errorf("%s 没有数据库记录，准备插入: ", relPath)
 				// 读取文件的修改时间

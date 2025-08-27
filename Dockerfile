@@ -6,7 +6,7 @@ ENV PATH=/app:$PATH
 # 安装依赖
 RUN apk add --update ffmpeg
 RUN apk add --update imagemagick
-
+ENV GIN_MODE=release
 # 设置工作目录
 WORKDIR /app
 # 创建必要的目录

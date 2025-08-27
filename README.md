@@ -39,7 +39,7 @@ docker run -d \
 `docker-compose.yml`，内容如下：
 
 ```yaml
-services:
+services:RTF
 	backup-server:
 		image: qicfan/backup-server:latest
 		container_name: backup-server

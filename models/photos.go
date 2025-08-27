@@ -3,6 +3,7 @@ package models
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/qicfan/backup-server/helpers"
@@ -54,10 +55,10 @@ func InsertPhoto(name string, path string, size int64, photoType PhotoType, live
 	}
 	photo := Photo{
 		Name:               name,
-		Path:               path,
+		Path:               strings.TrimPrefix(path, string(os.PathSeparator)),
 		Size:               size,
 		Type:               photoType,
-		LivePhotoVideoPath: livePhotoVideoPath,
+		LivePhotoVideoPath: strings.TrimPrefix(livePhotoVideoPath, string(os.PathSeparator)),
 		FileURI:            fileUri,
 		MTime:              mtime,
 		CTime:              ctime,
@@ -111,10 +112,18 @@ func DeletePhotoByPath(path string) error {
 }
 
 // 查询照片列表
-func ListPhotos(page int, pageSize int) ([]*Photo, error) {
-	var photos []*Photo
-	if err := helpers.Db.Offset((page-1)*pageSize).Limit(pageSize).Where("type <> ? OR (type=? AND live_photo_video_path != '')", PhotoTypeLivePhoto, PhotoTypeLivePhoto).Order("mtime DESC").Find(&photos).Error; err != nil {
-		return nil, err
+func ListPhotos(page int, pageSize int) (int64, []*Photo, error) {
+	var photos []*Photo = make([]*Photo, 0)
+	// 先查询总数
+	var total int64
+	if err := helpers.Db.Model(&Photo{}).Where("type <> ? OR (type=? AND live_photo_video_path != '')", PhotoTypeLivePhoto, PhotoTypeLivePhoto).Count(&total).Error; err != nil {
+		return 0, nil, err
 	}
-	return photos, nil
+
+	// 再分页查询列表
+	if err := helpers.Db.Offset((page-1)*pageSize).Limit(pageSize).Where("type <> ? OR (type=? AND live_photo_video_path != '')", PhotoTypeLivePhoto, PhotoTypeLivePhoto).Order("m_time DESC").Find(&photos).Error; err != nil {
+		helpers.AppLogger.Error("查询照片列表失败: ", err)
+		return 0, nil, err
+	}
+	return total, photos, nil
 }

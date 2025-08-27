@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,8 +22,9 @@ type DownloadQuery struct {
 // 查询图片的的缩略图，构造一个请求
 // http://yourserver/photo/thumbnail/MovieBackup%2FHuawei%20Pura%20X%2F2025%2F8%2F27%2F1.jpg/100x100
 func HandleGetThumbnail(c *gin.Context) {
-	path := c.Param("path") // 相对路径，不以 / 开头，相对helpers.UPLOAD_ROOT_DIR的路径，需要做urldecode
-	decodedPath, err := url.QueryUnescape(path)
+	path := c.Param("path") // 相对路径，不以 / 开头，相对helpers.UPLOAD_ROOT_DIR的路径，需要做base64_decode
+	// decodedPath, err := url.QueryUnescape(path)
+	decodedPath, err := helpers.Base64Decode(path)
 	if err != nil {
 		helpers.AppLogger.Errorf("路径解码失败: %v", err)
 		c.JSON(400, APIResponse[any]{Code: BadRequest, Message: "路径解码失败", Data: nil})
@@ -51,17 +51,17 @@ func HandleGetThumbnail(c *gin.Context) {
 	var thumbnailPath string = ""
 	if helpers.IsVideo(filepath.Ext(fullPath)) {
 		var videoErr error
-		thumbnailPath, videoErr = helpers.ExtractVideoThumbnail(fullPath, size)
+		thumbnailPath, videoErr = helpers.ExtractVideoThumbnail(path, size)
 		if videoErr != nil {
-			helpers.AppLogger.Errorf("生成视频缩略图失败: %v", videoErr)
+			// helpers.AppLogger.Errorf("生成视频缩略图失败: %v", videoErr)
 			c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "生成视频缩略图失败", Data: nil})
 			return
 		}
 	} else {
 		var thumbNailErr error
-		thumbnailPath, thumbNailErr = helpers.Thumbnail(fullPath, size)
+		thumbnailPath, thumbNailErr = helpers.Thumbnail(path, size)
 		if thumbNailErr != nil {
-			helpers.AppLogger.Errorf("生成缩略图失败: %v", thumbNailErr)
+			// helpers.AppLogger.Errorf("生成缩略图失败: %v", thumbNailErr)
 			c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "生成缩略图失败", Data: nil})
 			return
 		}
@@ -137,25 +137,27 @@ func HandlePhotoDownload(c *gin.Context) {
 }
 
 type PhotoListRequest struct {
-	Page     int `json:"page"`
-	PageSize int `json:"pageSize"`
+	Page     int `json:"page" form:"page"`
+	PageSize int `json:"page_size" form:"page_size"`
 }
 
 // 照片列表
 func HandlePhotoList(c *gin.Context) {
 	var req PhotoListRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		helpers.AppLogger.Errorf("请求参数绑定失败: %v", err)
 		c.JSON(400, APIResponse[any]{Code: BadRequest, Message: "请求参数错误", Data: nil})
 		return
 	}
-	var photos, err = models.ListPhotos(req.Page, req.PageSize)
+	helpers.AppLogger.Infof("查询照片列表: 页码 %d, 每页 %d", req.Page, req.PageSize)
+	var total, photos, err = models.ListPhotos(req.Page, req.PageSize)
 	if err != nil {
 		helpers.AppLogger.Errorf("查询照片列表失败: %v", err)
 		c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "查询照片列表失败", Data: nil})
 		return
 	}
-	c.JSON(200, APIResponse[[]*models.Photo]{Code: Success, Message: "", Data: photos})
+	helpers.AppLogger.Infof("查询照片列表成功: 总%d张， 本次返回 %d 张", total, len(photos))
+	c.JSON(200, APIResponse[map[string]any]{Code: Success, Message: "", Data: map[string]any{"total": total, "photos": photos}})
 }
 
 type PhotoUpdateRequest struct {

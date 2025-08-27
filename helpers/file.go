@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"io"
 	"net/http"
@@ -139,4 +140,12 @@ func FileTailSHA256(path string) (string, error) {
 	}
 	h := sha256.Sum256(buf)
 	return hex.EncodeToString(h[:]), nil
+}
+
+func Base64Decode(s string) (string, error) {
+	decoded, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return "", err
+	}
+	return string(decoded), nil
 }

@@ -25,20 +25,30 @@ func main() {
 	helpers.AppLogger = helpers.NewLogger("app.log")
 	initUploadDir()
 	helpers.InitDb()                // 初始化数据库组件
+	models.Migrate()                // 执行数据库迁移
 	helpers.CleanupUploadingFiles() // 清理所有未完成的上传临时文件
 	models.InitCron()               // 初始化定时任务
+	if IsRelease {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	r := gin.New()
 	r.Use(ginlogrus.Logger(logger), gin.Recovery())
+	r.POST("/login", controllers.HandleLogin)
 	api := r.Group("/api")
-	api.POST("/login", controllers.HandleLogin)
-	api.POST("/exists", controllers.HandleExists)
-	api.POST("/listdir", controllers.HandleListDir)
-	api.POST("/createdir", controllers.HandleCreateDir)
+	api.Use(controllers.JWTAuthMiddleware())
+	{
+		api.POST("/exists", controllers.HandleExists)
+		api.POST("/listdir", controllers.HandleListDir)
+		api.POST("/createdir", controllers.HandleCreateDir)
+	}
 	photoApi := r.Group("/photo")
-	photoApi.GET("/thumbnail/:path/:size", controllers.HandleGetThumbnail) // 缩略图查看
-	photoApi.GET("/download", controllers.HandlePhotoDownload)             // 文件下载
-	photoApi.POST("/list", controllers.HandlePhotoList)                    // 照片列表
-	photoApi.POST("/update", controllers.HandlePhotoUpdate)                // 照片信息更新
+	photoApi.Use(controllers.JWTAuthMiddleware())
+	{
+		photoApi.GET("/thumbnail/:path/:size", controllers.HandleGetThumbnail) // 缩略图查看
+		photoApi.GET("/download", controllers.HandlePhotoDownload)             // 文件下载
+		photoApi.GET("/list", controllers.HandlePhotoList)                     // 照片列表
+		photoApi.POST("/update", controllers.HandlePhotoUpdate)                // 照片信息更新
+	}
 	r.GET("/upload", controllers.HandleUpload)
 	port := os.Getenv("PORT")
 	if port == "" {

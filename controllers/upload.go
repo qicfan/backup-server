@@ -39,7 +39,7 @@ func HandleUpload(c *gin.Context) {
 		c.String(401, "Missing JWT token")
 		return
 	}
-	if err := ValidateJWT(tokenString); err != nil {
+	if _, err := ValidateJWT(tokenString); err != nil {
 		c.String(401, "Invalid JWT token")
 		return
 	}

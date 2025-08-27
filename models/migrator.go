@@ -31,7 +31,7 @@ func Migrate() {
 	} else {
 		helpers.AppLogger.Infof("数据库版本表存在，当前数据库版本：%d", migrator.VersionCode)
 	}
-	if migrator.VersionCode == 0 {
+	if migrator.VersionCode == 1 {
 		helpers.Db.AutoMigrate(Photo{})
 
 		migrator.updateVersion()

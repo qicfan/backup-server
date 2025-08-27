@@ -36,9 +36,10 @@ func Thumbnail(path, size string) (string, error) {
 		return "", fmt.Errorf("ImageMagick未安装: %v", err)
 	}
 	thumbnailPath := GetThumbnailFilename(path, size)
+	srcFullPath := filepath.Join(UPLOAD_ROOT_DIR, path)
 	if !FileExists(thumbnailPath) {
 		// 执行 ImageMagick 缩略图命令，强制输出jpg
-		cmd := exec.Command("magick", path, "-thumbnail", size, thumbnailPath)
+		cmd := exec.Command("magick", srcFullPath, "-thumbnail", size, thumbnailPath)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			AppLogger.Errorf("生成缩略图失败: %v, 输出: %s", err, string(output))
@@ -59,8 +60,9 @@ func HEICToJPG(inputPath string) (string, error) {
 	if FileExists(outputPath) {
 		return outputPath, nil
 	}
+	srcFullPath := filepath.Join(UPLOAD_ROOT_DIR, inputPath)
 	// 执行转换命令
-	cmd := exec.Command("magick", inputPath, outputPath)
+	cmd := exec.Command("magick", srcFullPath, outputPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		AppLogger.Errorf("转换失败: %v, 输出: %s", err, string(output))

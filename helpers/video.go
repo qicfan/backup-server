@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -13,7 +14,8 @@ func MovToMp4(srcPath string) (string, error) {
 	if FileExists(dstPath) {
 		return dstPath, nil
 	}
-	cmd := exec.Command("ffmpeg", "-y", "-i", srcPath, "-c:v", "copy", "-c:a", "aac", dstPath)
+	srcFullPath := filepath.Join(UPLOAD_ROOT_DIR, srcPath)
+	cmd := exec.Command("ffmpeg", "-y", "-i", srcFullPath, "-c:v", "copy", "-c:a", "aac", dstPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("ffmpeg 转码失败: %v, 输出: %s", err, string(output))
@@ -33,7 +35,7 @@ func ExtractVideoThumbnail(videoPath string, size string) (string, error) {
 		}
 	}
 	rootDir := filepath.Join(RootDir, "config", "converted")
-	coverPath := strings.TrimPrefix(strings.Replace(coverFullPath, rootDir, "", 1), "/")
+	coverPath := strings.TrimPrefix(strings.Replace(coverFullPath, rootDir, "", 1), string(os.PathSeparator))
 	thumbPath, err := Thumbnail(coverPath, size)
 	if err != nil {
 		return "", err
