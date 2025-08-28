@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/qicfan/backup-server/helpers"
@@ -23,9 +25,10 @@ type FileChunk struct {
 	CTime              int64            `json:"ctime"`                 // 照片的创建时间，Unix时间戳，单位秒
 	FileURI            string           `json:"fileUri"`               // 鸿蒙系统的照片资源的URI，可以用来查询照片是否存在，如果有这个字段代表本地存在该照片(动态视频的视频没有该字段)
 	Size               int64            `json:"size"`                  // 照片的大小，单位字节
-	ChunkIndex         int              `json:"chunkIndex"`
+	ChunkIndex         int              `json:"chunkIndex"`            // 当前块索引
+	ChunkCount         int              `json:"chunkCount"`            // 总块数
+	ChunkHash          string           `json:"chunkHash"`             // 分片SHA256
 	Data               []byte           `json:"data"`
-	IsLast             bool             `json:"isLast"`
 }
 
 var fileLocks sync.Map
@@ -35,12 +38,13 @@ var upgrader = websocket.Upgrader{
 
 func HandleUpload(c *gin.Context) {
 	tokenString := c.GetHeader("Sec-WebSocket-Protocol")
+	helpers.AppLogger.Infof("HandleUpload called with token %s", tokenString)
 	if tokenString == "" {
 		c.String(401, "Missing JWT token")
 		return
 	}
 	if _, err := ValidateJWT(tokenString); err != nil {
-		c.String(401, "Invalid JWT token")
+		c.String(401, "Invalid JWT token: %s", err.Error())
 		return
 	}
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -49,7 +53,7 @@ func HandleUpload(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
-
+	// conn.WriteMessage(websocket.TextMessage, []byte("hello, welcome connect this ws"))
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
@@ -65,50 +69,96 @@ func HandleUpload(c *gin.Context) {
 		fileName := filepath.Base(chunk.FileName)
 		targetPath := filepath.Join(helpers.UPLOAD_ROOT_DIR, relPath)
 		targetFile := filepath.Join(targetPath, fileName)
-		tempFileName := targetFile + ".uploading"
-		lock, _ := fileLocks.LoadOrStore(tempFileName, &sync.Mutex{})
-		mu := lock.(*sync.Mutex)
-		mu.Lock()
 		if err := os.MkdirAll(targetPath, 0755); err != nil {
 			helpers.AppLogger.Error("MkdirAll error:", err)
-			mu.Unlock()
 			continue
 		}
-		f, err := os.OpenFile(tempFileName, os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			helpers.AppLogger.Error("File open error:", err)
-			mu.Unlock()
+		// 每个chunk保存独立临时文件，先校验hash
+		chunkTempFile := fmt.Sprintf("%s.chunk%d", targetFile, chunk.ChunkIndex)
+		actualHash := helpers.BytesSHA256(chunk.Data)
+		if actualHash != chunk.ChunkHash {
+			helpers.AppLogger.Errorf("分片校验失败: index=%d, 期望=%s, 实际=%s", chunk.ChunkIndex, chunk.ChunkHash, actualHash)
+			resp := APIResponse[any]{Code: BadRequest, Message: "分片校验失败", Data: map[string]any{"index": chunk.ChunkIndex}}
+			msg, _ := json.Marshal(resp)
+			_ = conn.WriteMessage(websocket.TextMessage, msg)
 			continue
 		}
-		offset := int64(chunk.ChunkIndex) * int64(len(chunk.Data))
-		if _, err := f.Seek(offset, io.SeekStart); err != nil {
-			helpers.AppLogger.Error("Seek error:", err)
-			f.Close()
-			mu.Unlock()
+		if err := os.WriteFile(chunkTempFile, chunk.Data, 0644); err != nil {
+			helpers.AppLogger.Error("Chunk写入失败:", err)
 			continue
 		}
-		if _, err := f.Write(chunk.Data); err != nil {
-			helpers.AppLogger.Error("Write error:", err)
-		}
-		f.Close()
-		mu.Unlock()
-		if chunk.IsLast {
-			if err := os.Rename(tempFileName, targetFile); err != nil {
-				helpers.AppLogger.Error("重命名上传临时文件是发生错误:", err)
-			} else {
-				helpers.AppLogger.Infof("文件 %s 上传完成.", targetFile)
-				// 插入数据库
-				photoType := chunk.Type
-				livePhotoVideoPath := chunk.LivePhotoVideoPath
-				if err := models.InsertPhoto(fileName, targetFile, chunk.Size, photoType, livePhotoVideoPath, chunk.FileURI, chunk.MTime, chunk.CTime); err != nil {
-					helpers.AppLogger.Error("照片写入数据库错误:", err)
-				}
-				// 通知客户端上传完成
-				resp := APIResponse[map[string]string]{Code: Success, Message: "上传完成", Data: map[string]string{"path": chunk.FileName}}
-				msg, _ := json.Marshal(resp)
-				_ = conn.WriteMessage(websocket.TextMessage, msg)
+		// 检查是否所有chunk都已上传
+		complete := true
+		for i := 0; i < chunk.ChunkCount; i++ {
+			tempName := fmt.Sprintf("%s.chunk%d", targetFile, i)
+			if _, err := os.Stat(tempName); err != nil {
+				complete = false
+				break
 			}
-			fileLocks.Delete(tempFileName)
+		}
+		if complete {
+			// 合并所有chunk
+			out, err := os.OpenFile(targetFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+			if err != nil {
+				helpers.AppLogger.Error("合并文件失败:", err)
+				continue
+			}
+			for i := 0; i < chunk.ChunkCount; i++ {
+				tempName := fmt.Sprintf("%s.chunk%d", targetFile, i)
+				part, err := os.Open(tempName)
+				if err != nil {
+					helpers.AppLogger.Error("读取chunk失败:", err)
+					out.Close()
+					continue
+				}
+				io.Copy(out, part)
+				part.Close()
+				os.Remove(tempName)
+			}
+			out.Close()
+			helpers.AppLogger.Infof("文件 %s 上传完成.", targetFile)
+			// 插入数据库
+			photoType := chunk.Type
+			livePhotoVideoPath := chunk.LivePhotoVideoPath
+			if err := models.InsertPhoto(fileName, targetFile, chunk.Size, photoType, livePhotoVideoPath, chunk.FileURI, chunk.MTime, chunk.CTime); err != nil {
+				helpers.AppLogger.Error("照片写入数据库错误:", err)
+			}
+			// 通知客户端上传完成
+			resp := APIResponse[map[string]string]{Code: Success, Message: "上传完成", Data: map[string]string{"path": chunk.FileName}}
+			msg, _ := json.Marshal(resp)
+			_ = conn.WriteMessage(websocket.TextMessage, msg)
 		}
 	}
+}
+
+// 查询指定文件已上传分片索引及hash
+func HandleUploadStatus(c *gin.Context) {
+	fileName := c.Query("file")
+	chunkCountStr := c.Query("chunkCount")
+	if fileName == "" || chunkCountStr == "" {
+		c.JSON(400, APIResponse[any]{Code: BadRequest, Message: "参数缺失", Data: nil})
+		return
+	}
+	chunkCount, err := strconv.Atoi(chunkCountStr)
+	if err != nil || chunkCount <= 0 {
+		c.JSON(400, APIResponse[any]{Code: BadRequest, Message: "chunkCount参数错误", Data: nil})
+		return
+	}
+	relPath := filepath.Dir(fileName)
+	targetPath := filepath.Join(helpers.UPLOAD_ROOT_DIR, relPath)
+	targetFile := filepath.Join(targetPath, filepath.Base(fileName))
+	result := make([]map[string]any, 0, chunkCount)
+	for i := 0; i < chunkCount; i++ {
+		tempName := fmt.Sprintf("%s.chunk%d", targetFile, i)
+		info := map[string]any{"index": i, "exists": false, "hash": ""}
+		if fi, err := os.Stat(tempName); err == nil && fi.Size() > 0 {
+			data, err := os.ReadFile(tempName)
+			if err == nil {
+				info["exists"] = true
+				info["hash"] = helpers.BytesSHA256(data)
+			}
+		}
+		result = append(result, info)
+	}
+	c.JSON(200, APIResponse[any]{Code: Success, Message: "", Data: result})
 }
