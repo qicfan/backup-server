@@ -99,7 +99,7 @@ func HandlePhotoDownload(c *gin.Context) {
 		c.JSON(http.StatusNotFound, APIResponse[any]{Code: BadRequest, Message: "文件未找到", Data: nil})
 		return
 	}
-	fi, statErr := os.Stat(fullPath)
+	_, statErr := os.Stat(fullPath)
 	if statErr != nil {
 		helpers.AppLogger.Errorf("文件状态获取失败: %v", statErr)
 		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "文件状态获取失败", Data: nil})
@@ -129,12 +129,8 @@ func HandlePhotoDownload(c *gin.Context) {
 			fullPath = mp4Path
 		}
 	}
-	if fi.Size() > 10*1024*1024 {
-		// 超过10MB，流式传输
-		c.FileAttachment(fullPath, filepath.Base(fullPath))
-	} else {
-		c.File(fullPath)
-	}
+	// 超过10MB，流式传输
+	c.FileAttachment(fullPath, filepath.Base(fullPath))
 }
 
 type PhotoListRequest struct {
@@ -157,6 +153,8 @@ func HandlePhotoList(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "查询照片列表失败", Data: nil})
 		return
 	}
+	// 循环生成缩略图URL
+
 	helpers.AppLogger.Infof("查询照片列表成功: 总%d张， 本次返回 %d 张", total, len(photos))
 	c.JSON(http.StatusOK, APIResponse[map[string]any]{Code: Success, Message: "", Data: map[string]any{"total": total, "photos": photos}})
 }

@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 
 	"github.com/qicfan/backup-server/helpers"
 	"github.com/qicfan/backup-server/models"
@@ -28,10 +27,9 @@ type FileChunk struct {
 	ChunkIndex         int              `json:"chunkIndex"`            // 当前块索引
 	ChunkCount         int              `json:"chunkCount"`            // 总块数
 	ChunkHash          string           `json:"chunkHash"`             // 分片SHA256
-	Data               []byte           `json:"data"`
+	// Data字段废弃，分片数据通过WebSocket二进制帧单独发送
 }
 
-var fileLocks sync.Map
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
@@ -55,14 +53,29 @@ func HandleUpload(c *gin.Context) {
 	defer conn.Close()
 	// conn.WriteMessage(websocket.TextMessage, []byte("hello, welcome connect this ws"))
 	for {
-		_, msg, err := conn.ReadMessage()
+		// 先收JSON帧
+		mt, msg, err := conn.ReadMessage()
 		if err != nil {
 			helpers.AppLogger.Error("Read error:", err)
 			break
 		}
+		if mt != websocket.TextMessage {
+			helpers.AppLogger.Error("预期JSON帧，收到非文本帧")
+			continue
+		}
 		var chunk FileChunk
 		if err := json.Unmarshal(msg, &chunk); err != nil {
 			helpers.AppLogger.Error("Unmarshal error:", err)
+			continue
+		}
+		// 再收二进制分片数据
+		mt, rawData, err := conn.ReadMessage()
+		if err != nil {
+			helpers.AppLogger.Error("分片数据读取失败:", err)
+			continue
+		}
+		if mt != websocket.BinaryMessage {
+			helpers.AppLogger.Error("预期分片二进制帧，收到非二进制帧")
 			continue
 		}
 		relPath := filepath.Dir(chunk.FileName)
@@ -75,7 +88,7 @@ func HandleUpload(c *gin.Context) {
 		}
 		// 每个chunk保存独立临时文件，先校验hash
 		chunkTempFile := fmt.Sprintf("%s.chunk%d", targetFile, chunk.ChunkIndex)
-		actualHash := helpers.BytesSHA256(chunk.Data)
+		actualHash := helpers.BytesSHA256(rawData)
 		if actualHash != chunk.ChunkHash {
 			helpers.AppLogger.Errorf("分片校验失败: index=%d, 期望=%s, 实际=%s", chunk.ChunkIndex, chunk.ChunkHash, actualHash)
 			resp := APIResponse[any]{Code: BadRequest, Message: "分片校验失败", Data: map[string]any{"index": chunk.ChunkIndex}}
@@ -83,7 +96,7 @@ func HandleUpload(c *gin.Context) {
 			_ = conn.WriteMessage(websocket.TextMessage, msg)
 			continue
 		}
-		if err := os.WriteFile(chunkTempFile, chunk.Data, 0644); err != nil {
+		if err := os.WriteFile(chunkTempFile, rawData, 0644); err != nil {
 			helpers.AppLogger.Error("Chunk写入失败:", err)
 			continue
 		}
