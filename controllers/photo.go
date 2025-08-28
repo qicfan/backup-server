@@ -27,7 +27,7 @@ func HandleGetThumbnail(c *gin.Context) {
 	decodedPath, err := helpers.Base64Decode(path)
 	if err != nil {
 		helpers.AppLogger.Errorf("路径解码失败: %v", err)
-		c.JSON(400, APIResponse[any]{Code: BadRequest, Message: "路径解码失败", Data: nil})
+		c.JSON(http.StatusBadRequest, APIResponse[any]{Code: BadRequest, Message: "路径解码失败", Data: nil})
 		return
 	}
 	path = decodedPath
@@ -37,7 +37,7 @@ func HandleGetThumbnail(c *gin.Context) {
 	// 检查path是否存在
 	if !helpers.FileExists(fullPath) {
 		helpers.AppLogger.Errorf("检查照片路径失败: %v", err)
-		c.JSON(404, APIResponse[any]{Code: BadRequest, Message: "照片未找到", Data: nil})
+		c.JSON(http.StatusNotFound, APIResponse[any]{Code: BadRequest, Message: "照片未找到", Data: nil})
 		return
 	}
 	// 解析尺寸参数
@@ -45,7 +45,7 @@ func HandleGetThumbnail(c *gin.Context) {
 	_, err = fmt.Sscanf(size, "%dx%d", &width, &height)
 	if err != nil || width <= 0 || height <= 0 {
 		helpers.AppLogger.Errorf("尺寸参数错误: %v", err)
-		c.JSON(400, APIResponse[any]{Code: BadRequest, Message: "尺寸参数错误", Data: nil})
+		c.JSON(http.StatusBadRequest, APIResponse[any]{Code: BadRequest, Message: "尺寸参数错误", Data: nil})
 		return
 	}
 	var thumbnailPath string = ""
@@ -54,7 +54,7 @@ func HandleGetThumbnail(c *gin.Context) {
 		thumbnailPath, videoErr = helpers.ExtractVideoThumbnail(path, size)
 		if videoErr != nil {
 			// helpers.AppLogger.Errorf("生成视频缩略图失败: %v", videoErr)
-			c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "生成视频缩略图失败", Data: nil})
+			c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "生成视频缩略图失败", Data: nil})
 			return
 		}
 	} else {
@@ -62,12 +62,12 @@ func HandleGetThumbnail(c *gin.Context) {
 		thumbnailPath, thumbNailErr = helpers.Thumbnail(path, size)
 		if thumbNailErr != nil {
 			// helpers.AppLogger.Errorf("生成缩略图失败: %v", thumbNailErr)
-			c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "生成缩略图失败", Data: nil})
+			c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "生成缩略图失败", Data: nil})
 			return
 		}
 	}
 	if thumbnailPath == "" {
-		c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "生成缩略图失败", Data: nil})
+		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "生成缩略图失败", Data: nil})
 		return
 	}
 	file, _ := os.ReadFile(thumbnailPath)
@@ -86,6 +86,7 @@ func HandlePhotoDownload(c *gin.Context) {
 		helpers.AppLogger.Infof("下载请求参数: %+v", queryParams)
 	}
 	path := queryParams.Path // 相对路径，不以 / 开头，相对helpers.UPLOAD_ROOT_DIR的路径，需要做urldecode
+	path = strings.TrimPrefix(path, string(os.PathSeparator))
 	clientOS := helpers.ClientOS(queryParams.Cos)
 	if clientOS == helpers.UNKNOW {
 		clientOS = helpers.HMOS // 默认HMOS
@@ -95,13 +96,13 @@ func HandlePhotoDownload(c *gin.Context) {
 	helpers.AppLogger.Infof("下载文件: %s", path)
 	// 检查文件是否存在
 	if !helpers.FileExists(fullPath) {
-		c.JSON(404, APIResponse[any]{Code: BadRequest, Message: "文件未找到", Data: nil})
+		c.JSON(http.StatusNotFound, APIResponse[any]{Code: BadRequest, Message: "文件未找到", Data: nil})
 		return
 	}
 	fi, statErr := os.Stat(fullPath)
 	if statErr != nil {
 		helpers.AppLogger.Errorf("文件状态获取失败: %v", statErr)
-		c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "文件状态获取失败", Data: nil})
+		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "文件状态获取失败", Data: nil})
 		return
 	}
 	ext := strings.ToLower(filepath.Ext(path))
@@ -109,20 +110,20 @@ func HandlePhotoDownload(c *gin.Context) {
 	if clientOS == helpers.HMOS && isLive {
 		if ext == ".heic" {
 			// HEIC照片转码成JPG
-			jpgPath, err := helpers.HEICToJPG(fullPath)
+			jpgPath, err := helpers.HEICToJPG(path)
 			if err != nil {
 				helpers.AppLogger.Errorf("HEIC转JPG失败: %v", err)
-				c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "HEIC转JPG失败", Data: nil})
+				c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "HEIC转JPG失败", Data: nil})
 				return
 			}
 			fullPath = jpgPath
 		}
 		if ext == ".mov" {
 			// 华为下载.mov，转码成.mp4
-			mp4Path, err := helpers.MovToMp4(fullPath)
+			mp4Path, err := helpers.MovToMp4(path)
 			if err != nil {
 				helpers.AppLogger.Errorf("MOV转MP4失败: %v", err)
-				c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "MOV转MP4失败", Data: nil})
+				c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "MOV转MP4失败", Data: nil})
 				return
 			}
 			fullPath = mp4Path
@@ -146,18 +147,18 @@ func HandlePhotoList(c *gin.Context) {
 	var req PhotoListRequest
 	if err := c.ShouldBind(&req); err != nil {
 		helpers.AppLogger.Errorf("请求参数绑定失败: %v", err)
-		c.JSON(400, APIResponse[any]{Code: BadRequest, Message: "请求参数错误", Data: nil})
+		c.JSON(http.StatusBadRequest, APIResponse[any]{Code: BadRequest, Message: "请求参数错误", Data: nil})
 		return
 	}
 	helpers.AppLogger.Infof("查询照片列表: 页码 %d, 每页 %d", req.Page, req.PageSize)
 	var total, photos, err = models.ListPhotos(req.Page, req.PageSize)
 	if err != nil {
 		helpers.AppLogger.Errorf("查询照片列表失败: %v", err)
-		c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "查询照片列表失败", Data: nil})
+		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "查询照片列表失败", Data: nil})
 		return
 	}
 	helpers.AppLogger.Infof("查询照片列表成功: 总%d张， 本次返回 %d 张", total, len(photos))
-	c.JSON(200, APIResponse[map[string]any]{Code: Success, Message: "", Data: map[string]any{"total": total, "photos": photos}})
+	c.JSON(http.StatusOK, APIResponse[map[string]any]{Code: Success, Message: "", Data: map[string]any{"total": total, "photos": photos}})
 }
 
 type PhotoUpdateRequest struct {
@@ -171,13 +172,13 @@ func HandlePhotoUpdate(c *gin.Context) {
 	var req PhotoUpdateRequest
 	if err := c.ShouldBind(&req); err != nil {
 		helpers.AppLogger.Errorf("请求参数绑定失败: %v", err)
-		c.JSON(400, APIResponse[any]{Code: BadRequest, Message: "请求参数错误: " + err.Error(), Data: nil})
+		c.JSON(http.StatusBadRequest, APIResponse[any]{Code: BadRequest, Message: "请求参数错误: " + err.Error(), Data: nil})
 		return
 	}
 	photo, err := models.GetPhotoByPath(req.Path)
 	if err != nil {
 		helpers.AppLogger.Errorf("查询照片失败: %v", err)
-		c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "查询照片失败: " + err.Error(), Data: nil})
+		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "查询照片失败: " + err.Error(), Data: nil})
 		return
 	}
 	photo.FileURI = req.FileUri
@@ -185,8 +186,8 @@ func HandlePhotoUpdate(c *gin.Context) {
 	photo.CTime = req.Ctime
 	if err := photo.Update(); err != nil {
 		helpers.AppLogger.Errorf("更新照片失败: %v", err)
-		c.JSON(500, APIResponse[any]{Code: BadRequest, Message: "更新照片失败: " + err.Error(), Data: nil})
+		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "更新照片失败: " + err.Error(), Data: nil})
 		return
 	}
-	c.JSON(200, APIResponse[any]{Code: Success, Message: "更新成功", Data: nil})
+	c.JSON(http.StatusOK, APIResponse[any]{Code: Success, Message: "更新成功", Data: nil})
 }

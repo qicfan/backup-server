@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,7 +43,7 @@ func HandleCreateDir(c *gin.Context) {
 	var req CreateDirRequest
 	if err := c.ShouldBind(&req); err != nil {
 		helpers.AppLogger.Warnf("请求的参数错误: %v", err)
-		c.JSON(200, APIResponse[any]{Code: BadRequest, Message: "请求的参数错误: " + err.Error(), Data: nil})
+		c.JSON(http.StatusBadRequest, APIResponse[any]{Code: BadRequest, Message: "请求的参数错误: " + err.Error(), Data: nil})
 		return
 	}
 	parent := req.Parent
@@ -54,11 +55,11 @@ func HandleCreateDir(c *gin.Context) {
 	absPath := filepath.Join(helpers.UPLOAD_ROOT_DIR, relPath)
 	if err := os.MkdirAll(absPath, 0755); err != nil {
 		helpers.AppLogger.Errorf("Create dir error: %v", err)
-		c.JSON(200, APIResponse[any]{Code: BadRequest, Message: err.Error(), Data: map[string]interface{}{"path": relPath}})
+		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: err.Error(), Data: map[string]interface{}{"path": relPath}})
 		return
 	}
 	helpers.AppLogger.Infof("Created dir: %s", absPath)
-	c.JSON(200, APIResponse[map[string]string]{Code: Success, Message: "", Data: map[string]string{"path": relPath}})
+	c.JSON(http.StatusOK, APIResponse[map[string]string]{Code: Success, Message: "", Data: map[string]string{"path": relPath}})
 }
 
 // 检查目录或文件是否存在
@@ -68,13 +69,13 @@ func HandleExists(c *gin.Context) {
 	var req PathRequest
 	if err := c.ShouldBind(&req); err != nil {
 		helpers.AppLogger.Warnf("Invalid request: %v", err)
-		c.JSON(200, APIResponse[any]{Code: BadRequest, Message: "参数错误: " + err.Error(), Data: nil})
+		c.JSON(http.StatusBadRequest, APIResponse[any]{Code: BadRequest, Message: "参数错误: " + err.Error(), Data: nil})
 		return
 	}
 	helpers.AppLogger.Infof("Check exists: %s", req.Path)
 	fullPath := filepath.Join(helpers.UPLOAD_ROOT_DIR, req.Path)
 	exists := helpers.FileExists(fullPath)
-	c.JSON(200, APIResponse[map[string]bool]{Code: Success, Message: "", Data: map[string]bool{"exists": exists}})
+	c.JSON(http.StatusOK, APIResponse[map[string]bool]{Code: Success, Message: "", Data: map[string]bool{"exists": exists}})
 }
 
 // 目录列表
@@ -84,7 +85,7 @@ func HandleListDir(c *gin.Context) {
 	var req PathRequest
 	if err := c.ShouldBind(&req); err != nil {
 		helpers.AppLogger.Warnf("Invalid request: %v", err)
-		c.JSON(200, APIResponse[interface{}]{Code: BadRequest, Message: "参数错误: " + err.Error(), Data: nil})
+		c.JSON(http.StatusBadRequest, APIResponse[interface{}]{Code: BadRequest, Message: "参数错误: " + err.Error(), Data: nil})
 		return
 	}
 	path := req.Path
@@ -97,7 +98,7 @@ func HandleListDir(c *gin.Context) {
 	entries, err := os.ReadDir(absPath)
 	if err != nil {
 		helpers.AppLogger.Errorf("ReadDir error: %v", err)
-		c.JSON(200, APIResponse[interface{}]{Code: BadRequest, Message: err.Error(), Data: nil})
+		c.JSON(http.StatusInternalServerError, APIResponse[interface{}]{Code: BadRequest, Message: err.Error(), Data: nil})
 		return
 	}
 	dirs := make([]DirOrFileEntry, 0)
@@ -111,5 +112,5 @@ func HandleListDir(c *gin.Context) {
 		}
 		dirs = append(dirs, DirOrFileEntry{Name: entry.Name(), RelPath: relPath, IsDir: isDir})
 	}
-	c.JSON(200, APIResponse[[]DirOrFileEntry]{Code: Success, Message: "", Data: dirs})
+	c.JSON(http.StatusOK, APIResponse[[]DirOrFileEntry]{Code: Success, Message: "", Data: dirs})
 }

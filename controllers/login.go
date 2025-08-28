@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -21,7 +22,7 @@ type LoginResponse struct {
 func HandleLogin(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBind(&req); err != nil {
-		c.JSON(200, APIResponse[any]{Code: BadRequest, Message: fmt.Sprintf("参数错误：%v", err), Data: nil})
+		c.JSON(http.StatusBadRequest, APIResponse[any]{Code: BadRequest, Message: fmt.Sprintf("参数错误：%v", err), Data: nil})
 		return
 	}
 	helpers.AppLogger.Infof("Login attempt: %s, %s", req.Username, req.Password)
@@ -35,7 +36,7 @@ func HandleLogin(c *gin.Context) {
 	}
 	helpers.AppLogger.Infof("ENV attempt: %s, %s", envUser, envPass)
 	if req.Username != envUser || req.Password != envPass {
-		c.JSON(200, APIResponse[any]{Code: BadRequest, Message: "用户名或密码错误", Data: nil})
+		c.JSON(http.StatusOK, APIResponse[any]{Code: BadRequest, Message: "用户名或密码错误", Data: nil})
 		return
 	}
 	claims := &LoginUser{
@@ -48,8 +49,8 @@ func HandleLogin(c *gin.Context) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(jwtSecret)
 	if err != nil {
-		c.JSON(200, APIResponse[any]{Code: BadRequest, Message: "Token生成失败", Data: nil})
+		c.JSON(http.StatusOK, APIResponse[any]{Code: BadRequest, Message: "Token生成失败", Data: nil})
 		return
 	}
-	c.JSON(200, APIResponse[map[string]string]{Code: Success, Message: "", Data: map[string]string{"token": tokenString}})
+	c.JSON(http.StatusOK, APIResponse[map[string]string]{Code: Success, Message: "", Data: map[string]string{"token": tokenString}})
 }
