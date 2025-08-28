@@ -143,9 +143,14 @@ func FileTailSHA256(path string) (string, error) {
 }
 
 func Base64Decode(s string) (string, error) {
-	decoded, err := base64.StdEncoding.DecodeString(s)
+	decoded, err := base64.URLEncoding.DecodeString(s)
 	if err != nil {
 		return "", err
 	}
 	return string(decoded), nil
+}
+
+func BytesSHA256(data []byte) string {
+	h := sha256.Sum256(data)
+	return hex.EncodeToString(h[:])
 }
