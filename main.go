@@ -50,6 +50,7 @@ func main() {
 		photoApi.POST("/update", controllers.HandlePhotoUpdate)                // 照片信息更新
 	}
 	r.GET("/upload", controllers.HandleUpload)
+	r.GET("/upload/status", controllers.HandleUploadStatus)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "12334"
