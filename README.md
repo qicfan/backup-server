@@ -5,12 +5,12 @@
 - 给客户端提供jwt验证
 - 给客户端提供/upload目录的子目录列表，方便选择备份目录
 - 给客户端提供创建目录接口
-- 可以识别华为和苹果的动态照片
-- 鸿蒙客户端可以下载苹果和华为的动态照片并导入相册
 - 客户端访问照片列表时默认返回缩略图，缩略图会缓存下来供下次使用
 - 照片或视频如果大于10MB会改为流式传输，降低服务器内存占用
 - 下载时如果是华为设备导入苹果动图，会将HEIC转为JPG，MOV转为MP4
+- 支持备份鸿蒙的动态照片
 
+#### 本项目暂时没有UI，需要配合备份客户端使用：[https://github.com/qicfan/backup](https://github.com/qicfan/backup)
 
 ## 使用 Docker命令 部署
 
@@ -18,21 +18,49 @@
 docker run -d \
 	--name backup-server \
 	-p 12334:12334 \
+  -e TZ=Asia/Shanghai \
 	-e USERNAME=admin \
 	-e PASSWORD=admin \
-    -e PORT=12334 \
-	-v /your/upload/dir:/upload \
-	-v /your/config/dir:/app/config \
+  -e PORT=12334 \
+	-v /your/upload:/upload \
+	-v /your/config:/app/config \
 	qicfan/backup-server:latest
 ```
 
-参数说明：
-- `-p 12334:12334` 映射端口
-- `-e USERNAME=admin` 设置登录用户名
-- `-e PASSWORD=admin` 设置登录密码
-- `-e PORT=12334` 设置访问的端口号，一般不动除非有特殊需求
-- `-v /your/upload/dir:/upload` 挂载上传文件目录（也就是存放照片的目录）
-- `-v /your/config/dir:/app/config` 挂载配置和日志目录
+
+## 目录映射说明
+
+| 容器内路径    | 宿主机路径                           | 说明                     |
+| ------------- | ------------------------------------ | ------------------------ |
+| `/app/config` | `/your/config` | 配置文件、数据、日志目录   |
+| `/upload`      | `/your/upload`                    | 存放照片的目录 |
+
+## 环境变量
+
+| 变量名 | 默认值          | 说明     |
+| ------ | --------------- | -------- |
+| `TZ`   | `Asia/Shanghai` | 时区设置 |
+| `USERNAME`   | `admin` | 登录的用户名 |
+| `PASSWORD`   | `admin` | 登录的密码 |
+| `PORT`   | `12334` | WEB服务的端口号，不要改动除非有特殊需求 |
+
+## 端口说明
+
+- **12334**: Web 服务端口
+
+## 版本标签
+
+- `latest` - 最新发布版本
+- `v1.0.0` - 具体版本号（对应 GitHub Release）
+
+## 首次使用
+
+启动容器后访问，然后使用客户端APP链接yourip:12334，输入用户名，密码
+
+## 数据备份
+
+日志、缩略图、转码的视频都位于 `/your/config` 目录，请定期备份
+
 
 ## 使用 Docker Compose 部署
 
@@ -46,13 +74,14 @@ services:
     ports:
       - "12334:12334"
     environment:
+      - TZ=Asia/Shanghai
       - USERNAME=admin
       - PASSWORD=admin
       - PORT=12334
     volumes:
-      - /your/upload/dir:/upload
-      - /your/config/dir:/app/config
+      - /your/upload:/upload
+      - /your/config:/app/config
     restart: unless-stopped
 ```
 
-如需启用 SSL，请将证书文件（server.crt 和 server.key）放入 `/app/config`，然后用证书对应的域名访问即可。
+如需启用 SSL，请将证书文件（server.crt 和 server.key）放入 `/your/config`，然后用证书对应的域名访问即可。
