@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // 返回缩略图的保存路径
@@ -35,8 +36,13 @@ func Thumbnail(path, size string) (string, error) {
 		AppLogger.Errorf("ImageMagick未安装: %v", err)
 		return "", fmt.Errorf("ImageMagick未安装: %v", err)
 	}
-	thumbnailPath := GetThumbnailFilename(path, size)
 	srcFullPath := filepath.Join(UPLOAD_ROOT_DIR, path)
+	thumbnailPath := GetThumbnailFilename(path, size)
+	if strings.HasPrefix(path, "/") {
+		srcFullPath = path
+		thumbnailPath = fmt.Sprintf("%s_%s.jpg", filepath.Base(srcFullPath), size)
+	}
+
 	if !FileExists(thumbnailPath) {
 		// 执行 ImageMagick 缩略图命令，强制输出jpg
 		cmd := exec.Command("magick", srcFullPath, "-thumbnail", size, thumbnailPath)

@@ -2,10 +2,8 @@ package helpers
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
 // MovToMp4 将 mov 视频转为 mp4 格式
@@ -37,13 +35,13 @@ func ExtractVideoThumbnail(videoPath string, size string) (string, error) {
 		}
 		AppLogger.Infof("提取视频缩略图成功: %s", coverFullPath)
 	}
-	rootDir := filepath.Join(RootDir, "config")
-	coverPath := strings.TrimPrefix(strings.Replace(coverFullPath, rootDir, "", 1), string(os.PathSeparator))
-	thumbPath, err := Thumbnail(coverPath, size)
+	// rootDir := filepath.Join(RootDir, "config")
+	// coverPath := strings.TrimPrefix(strings.Replace(coverFullPath, rootDir, "", 1), string(os.PathSeparator))
+	thumbPath, err := Thumbnail(coverFullPath, size)
 	if err != nil {
-		AppLogger.Errorf("生成缩略图 %s 失败: %v", coverPath, err)
+		AppLogger.Errorf("生成缩略图 %s 失败: %v", coverFullPath, err)
 		return "", err
 	}
-	AppLogger.Infof("生成缩略图成功: %s => %s", coverFullPath, coverPath)
+	AppLogger.Infof("生成缩略图成功: %s => %s", coverFullPath, thumbPath)
 	return thumbPath, nil
 }
