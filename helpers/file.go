@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	ImageExtensions = []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
+	ImageExtensions = []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".heic"}
 	VideoExtensions = []string{".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm"}
 )
 
