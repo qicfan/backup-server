@@ -31,14 +31,18 @@ func ExtractVideoThumbnail(videoPath string, size string) (string, error) {
 		cmd := exec.Command("ffmpeg", "-y", "-i", videoPath, "-ss", "1", "-vframes", "1", coverFullPath)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
+			AppLogger.Errorf("提取视频缩略图失败: %v, 输出: %s", err, string(output))
 			return "", fmt.Errorf("ffmpeg 生成缩略图失败: %v, 输出: %s", err, string(output))
 		}
+		AppLogger.Infof("提取视频缩略图成功: %s", coverFullPath)
 	}
 	rootDir := filepath.Join(RootDir, "config", "converted")
 	coverPath := strings.TrimPrefix(strings.Replace(coverFullPath, rootDir, "", 1), string(os.PathSeparator))
 	thumbPath, err := Thumbnail(coverPath, size)
 	if err != nil {
+		AppLogger.Errorf("生成缩略图 %s 失败: %v", coverPath, err)
 		return "", err
 	}
+	AppLogger.Infof("生成缩略图成功: %s => %s", coverFullPath, coverPath)
 	return thumbPath, nil
 }
