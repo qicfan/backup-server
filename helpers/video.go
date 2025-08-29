@@ -27,8 +27,9 @@ func MovToMp4(srcPath string) (string, error) {
 // 先提取图片，再生成缩略图
 func ExtractVideoThumbnail(videoPath string, size string) (string, error) {
 	coverFullPath := GetConvertFilename(videoPath, ".jpg")
+	srcFullPath := filepath.Join(UPLOAD_ROOT_DIR, videoPath)
 	if !FileExists(coverFullPath) {
-		cmd := exec.Command("ffmpeg", "-y", "-i", videoPath, "-ss", "1", "-vframes", "1", coverFullPath)
+		cmd := exec.Command("ffmpeg", "-y", "-i", srcFullPath, "-ss", "1", "-vframes", "1", coverFullPath)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			AppLogger.Errorf("提取视频缩略图失败: %v, 输出: %s", err, string(output))
