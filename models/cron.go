@@ -33,8 +33,9 @@ func RefreshPhotoCollection() {
 		var photoType PhotoType = PhotoTypeNormal
 		isLivePhotoVideo := false
 		// 查找是否有同名的视频文件
-		ext := strings.ToLower(filepath.Ext(name))
+		ext := filepath.Ext(name)
 		baseName := strings.TrimSuffix(path, ext)
+		ext = strings.ToLower(ext)
 		// 处理苹果的动态图片
 		if ext == ".heic" {
 			// 查询是否有同名的.mov文件
