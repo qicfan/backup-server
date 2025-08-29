@@ -36,16 +36,16 @@ func RefreshPhotoCollection() {
 		ext := filepath.Ext(name)
 		baseName := strings.TrimSuffix(path, ext)
 		ext = strings.ToLower(ext)
+		if helpers.IsImage(ext) {
+			// 查找是否有同名的mp4文件
+			livePhotoVideoFullPath = baseName + ".mp4"
+			livePhotoVideoFullPath1 = baseName + ".MP4"
+		}
 		// 处理苹果的动态图片
 		if ext == ".heic" {
 			// 查询是否有同名的.mov文件
 			livePhotoVideoFullPath = baseName + ".mov"
 			livePhotoVideoFullPath1 = baseName + ".MOV"
-		}
-		if ext == ".jpg" {
-			// 查找是否有同名的mp4文件
-			livePhotoVideoFullPath = baseName + ".mp4"
-			livePhotoVideoFullPath1 = baseName + ".MP4"
 		}
 		if ext == ".mp4" {
 			// 查询是否有同名的.jpg文件
