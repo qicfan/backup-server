@@ -161,8 +161,6 @@ func HandlePhotoList(c *gin.Context) {
 type PhotoUpdateRequest struct {
 	Path    string `json:"path" form:"path" binding:"required"`
 	FileUri string `json:"fileUri" form:"fileUri" binding:"required"`
-	Mtime   int64  `json:"mtime" form:"mtime" binding:"required"`
-	Ctime   int64  `json:"ctime" form:"ctime" binding:"required"`
 }
 
 func HandlePhotoUpdate(c *gin.Context) {
@@ -184,5 +182,5 @@ func HandlePhotoUpdate(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "更新照片失败: " + err.Error(), Data: nil})
 		return
 	}
-	c.JSON(http.StatusOK, APIResponse[any]{Code: Success, Message: "更新成功", Data: nil})
+	c.JSON(http.StatusOK, APIResponse[any]{Code: Success, Message: "更新成功", Data: req.Path})
 }
