@@ -94,7 +94,7 @@ func HandlePhotoDownload(c *gin.Context) {
 	}
 	isLive := queryParams.Live == 1
 	fullPath := filepath.Join(helpers.UPLOAD_ROOT_DIR, path)
-	helpers.AppLogger.Infof("下载文件: %s", path)
+	helpers.AppLogger.Infof("下载文件: %s", fullPath)
 	// 检查文件是否存在
 	if !helpers.FileExists(fullPath) {
 		c.JSON(http.StatusNotFound, APIResponse[any]{Code: BadRequest, Message: "文件未找到", Data: nil})
