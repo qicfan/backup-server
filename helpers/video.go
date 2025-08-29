@@ -37,7 +37,7 @@ func ExtractVideoThumbnail(videoPath string, size string) (string, error) {
 		}
 		AppLogger.Infof("提取视频缩略图成功: %s", coverFullPath)
 	}
-	rootDir := filepath.Join(RootDir, "config", "converted")
+	rootDir := filepath.Join(RootDir, "config")
 	coverPath := strings.TrimPrefix(strings.Replace(coverFullPath, rootDir, "", 1), string(os.PathSeparator))
 	thumbPath, err := Thumbnail(coverPath, size)
 	if err != nil {
