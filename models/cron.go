@@ -105,9 +105,9 @@ func InitCron() {
 	}
 	GlobalCron = cron.New()
 
-	GlobalCron.AddFunc("*/5 * * * *", func() {
+	GlobalCron.AddFunc("*/2 * * * *", func() {
 		// 每5分钟刷新照片集合
-		helpers.AppLogger.Info("刷新照片集合")
+		// helpers.AppLogger.Info("刷新照片集合")
 		RefreshPhotoCollection()
 	})
 	helpers.AppLogger.Info("定时任务已初始化，开始运行")
