@@ -154,8 +154,6 @@ func HandlePhotoList(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "查询照片列表失败", Data: nil})
 		return
 	}
-	// 循环生成缩略图URL
-
 	helpers.AppLogger.Infof("查询照片列表成功: 总%d张， 本次返回 %d 张", total, len(photos))
 	c.JSON(http.StatusOK, APIResponse[map[string]any]{Code: Success, Message: "", Data: map[string]any{"total": total, "photos": photos}})
 }

@@ -29,7 +29,9 @@ func RefreshPhotoCollection() {
 		name := info.Name()
 		var livePhotoVideoPath string = ""
 		var livePhotoVideoFullPath string = ""
+		var livePhotoVideoFullPath1 string = ""
 		var photoType PhotoType = PhotoTypeNormal
+		isLivePhotoVideo := false
 		// 查找是否有同名的视频文件
 		ext := strings.ToLower(filepath.Ext(name))
 		baseName := strings.TrimSuffix(path, ext)
@@ -37,14 +39,37 @@ func RefreshPhotoCollection() {
 		if ext == ".heic" {
 			// 查询是否有同名的.mov文件
 			livePhotoVideoFullPath = baseName + ".mov"
+			livePhotoVideoFullPath1 = baseName + ".MOV"
 		}
 		if helpers.IsImage(ext) {
 			// 查找是否有同名的mp4文件
 			livePhotoVideoFullPath = baseName + ".mp4"
+			livePhotoVideoFullPath1 = baseName + ".MP4"
+		}
+		if ext == ".mp4" {
+			// 查询是否有同名的.jpg文件
+			livePhotoVideoFullPath = baseName + ".jpg"
+			livePhotoVideoFullPath1 = baseName + ".JPG"
+			isLivePhotoVideo = true
+		}
+		if ext == ".mov" {
+			// 查询是否有同名的.heic文件
+			livePhotoVideoFullPath = baseName + ".heic"
+			livePhotoVideoFullPath1 = baseName + ".HEIC"
+			isLivePhotoVideo = true
 		}
 		if livePhotoVideoFullPath != "" && helpers.FileExists(livePhotoVideoFullPath) {
 			photoType = PhotoTypeLivePhoto
-			livePhotoVideoPath = strings.TrimPrefix(strings.TrimPrefix(livePhotoVideoFullPath, helpers.UPLOAD_ROOT_DIR), string(os.PathSeparator))
+			if !isLivePhotoVideo {
+				livePhotoVideoPath = strings.TrimPrefix(strings.TrimPrefix(livePhotoVideoFullPath, helpers.UPLOAD_ROOT_DIR), string(os.PathSeparator))
+			}
+		} else {
+			if livePhotoVideoFullPath1 != "" && helpers.FileExists(livePhotoVideoFullPath1) {
+				photoType = PhotoTypeLivePhoto
+				if !isLivePhotoVideo {
+					livePhotoVideoPath = strings.TrimPrefix(strings.TrimPrefix(livePhotoVideoFullPath1, helpers.UPLOAD_ROOT_DIR), string(os.PathSeparator))
+				}
+			}
 		}
 		if helpers.IsImage(ext) || helpers.IsVideo(ext) {
 			// 查询数据库是否存在
