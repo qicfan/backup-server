@@ -27,6 +27,7 @@ func main() {
 	helpers.InitDb()                // 初始化数据库组件
 	models.Migrate()                // 执行数据库迁移
 	helpers.CleanupUploadingFiles() // 清理所有未完成的上传临时文件
+	models.RefreshPhotoCollection() // 先执行一遍
 	models.InitCron()               // 初始化定时任务
 	if IsRelease {
 		gin.SetMode(gin.ReleaseMode)
