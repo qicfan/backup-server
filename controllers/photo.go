@@ -179,8 +179,6 @@ func HandlePhotoUpdate(c *gin.Context) {
 		return
 	}
 	photo.FileURI = req.FileUri
-	photo.MTime = req.Mtime
-	photo.CTime = req.Ctime
 	if err := photo.Update(); err != nil {
 		helpers.AppLogger.Errorf("更新照片失败: %v", err)
 		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "更新照片失败: " + err.Error(), Data: nil})
