@@ -38,10 +38,12 @@ func HandleUpload(c *gin.Context) {
 	tokenString := c.GetHeader("Sec-WebSocket-Protocol")
 	helpers.AppLogger.Infof("HandleUpload called with token %s", tokenString)
 	if tokenString == "" {
+		helpers.AppLogger.Error("Missing JWT token")
 		c.String(401, "Missing JWT token")
 		return
 	}
 	if _, err := ValidateJWT(tokenString); err != nil {
+		helpers.AppLogger.Error("Invalid JWT token:", err)
 		c.String(401, "Invalid JWT token: %s", err.Error())
 		return
 	}
@@ -63,6 +65,7 @@ func HandleUpload(c *gin.Context) {
 			helpers.AppLogger.Error("预期JSON帧，收到非文本帧")
 			continue
 		}
+		helpers.AppLogger.Debugf("Received message: %s", string(msg))
 		var chunk FileChunk
 		if err := json.Unmarshal(msg, &chunk); err != nil {
 			helpers.AppLogger.Error("Unmarshal error:", err)
@@ -133,7 +136,7 @@ func HandleUpload(c *gin.Context) {
 			// 插入数据库
 			photoType := chunk.Type
 			livePhotoVideoPath := chunk.LivePhotoVideoPath
-			if err := models.InsertPhoto(fileName, targetFile, chunk.Size, photoType, livePhotoVideoPath, chunk.FileURI, chunk.MTime, chunk.CTime); err != nil {
+			if err := models.InsertPhoto(fileName, chunk.FileName, chunk.Size, photoType, livePhotoVideoPath, chunk.FileURI, chunk.MTime, chunk.CTime); err != nil {
 				helpers.AppLogger.Error("照片写入数据库错误:", err)
 			}
 			// 通知客户端上传完成
