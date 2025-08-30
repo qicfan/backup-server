@@ -59,7 +59,7 @@ func RefreshPhotoCollection() {
 			livePhotoVideoFullPath1 = baseName + ".HEIC"
 			isLivePhotoVideo = true
 		}
-		helpers.AppLogger.Infof("扩展名：%s, 文件名：%s, 动态照片的视频文件路径：%s，大写扩展名：%s", ext, baseName, livePhotoVideoFullPath, livePhotoVideoFullPath1)
+		// helpers.AppLogger.Infof("扩展名：%s, 文件名：%s, 动态照片的视频文件路径：%s，大写扩展名：%s", ext, baseName, livePhotoVideoFullPath, livePhotoVideoFullPath1)
 		if livePhotoVideoFullPath != "" && helpers.FileExists(livePhotoVideoFullPath) {
 			photoType = PhotoTypeLivePhoto
 			if !isLivePhotoVideo {
