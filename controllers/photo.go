@@ -50,12 +50,13 @@ func HandleGetThumbnail(c *gin.Context) {
 		return
 	}
 	var thumbnailPath string = ""
-	if helpers.IsVideo(filepath.Ext(fullPath)) {
+	ext := strings.ToLower(filepath.Ext(fullPath))
+	if helpers.IsVideo(ext) {
 		var videoErr error
 		thumbnailPath, videoErr = helpers.ExtractVideoThumbnail(path, size)
 		if videoErr != nil {
 			// helpers.AppLogger.Errorf("生成视频缩略图失败: %v", videoErr)
-			c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "生成视频缩略图失败", Data: nil})
+			c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "生成视频缩略图失败: " + videoErr.Error(), Data: nil})
 			return
 		}
 	} else {

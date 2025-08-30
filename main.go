@@ -116,6 +116,10 @@ func getRootDir() string {
 		} else {
 			helpers.UPLOAD_ROOT_DIR = "/home/samba/shares/dev/backup-server/config/upload"
 		}
+	} else {
+		if runtime.GOOS == "linux" {
+			helpers.UPLOAD_ROOT_DIR = os.Getenv("UPLOAD_ROOT_DIR")
+		}
 	}
 	return exPath
 }

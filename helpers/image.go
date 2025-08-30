@@ -32,9 +32,13 @@ func GetConvertFilename(srcFilePath string, newExt string) string {
 // size: 缩略图尺寸，如 "100x100"
 // 返回缩略图的完整文件路径
 func Thumbnail(path, size string) (string, error) {
-	if _, err := exec.LookPath("magick"); err != nil {
-		AppLogger.Errorf("ImageMagick未安装: %v", err)
-		return "", fmt.Errorf("ImageMagick未安装: %v", err)
+	exeCommand := "magick"
+	if _, err := exec.LookPath(exeCommand); err != nil {
+		AppLogger.Errorf("%s未安装: %v", exeCommand, err)
+		exeCommand = "convert"
+		if _, err := exec.LookPath(exeCommand); err != nil {
+			return "", fmt.Errorf("%s未安装: %v", exeCommand, err)
+		}
 	}
 	srcFullPath := filepath.Join(UPLOAD_ROOT_DIR, path)
 	thumbnailPath := GetThumbnailFilename(path, size)
@@ -45,7 +49,7 @@ func Thumbnail(path, size string) (string, error) {
 
 	if !FileExists(thumbnailPath) {
 		// 执行 ImageMagick 缩略图命令，强制输出jpg
-		cmd := exec.Command("magick", srcFullPath, "-thumbnail", size, thumbnailPath)
+		cmd := exec.Command(exeCommand, srcFullPath, "-thumbnail", size, thumbnailPath)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			AppLogger.Errorf("生成缩略图失败: %v, 输出: %s", err, string(output))
