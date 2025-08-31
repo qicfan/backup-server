@@ -65,9 +65,13 @@ func Thumbnail(path, size string) (string, error) {
 // HeicToJpg 将 HEIC 图片转为 JPG 格式
 func HEICToJPG(inputPath string) (string, error) {
 	// 检查ImageMagick是否安装
-	if _, err := exec.LookPath("magick"); err != nil {
-		AppLogger.Errorf("ImageMagick未安装: %v", err)
-		return "", fmt.Errorf("ImageMagick未安装: %v", err)
+	exeCommand := "magick"
+	if _, err := exec.LookPath(exeCommand); err != nil {
+		AppLogger.Errorf("%s未安装: %v", exeCommand, err)
+		exeCommand = "convert"
+		if _, err := exec.LookPath(exeCommand); err != nil {
+			return "", fmt.Errorf("%s未安装: %v", exeCommand, err)
+		}
 	}
 	outputPath := GetConvertFilename(inputPath, ".jpg")
 	if FileExists(outputPath) {
@@ -75,7 +79,7 @@ func HEICToJPG(inputPath string) (string, error) {
 	}
 	srcFullPath := filepath.Join(UPLOAD_ROOT_DIR, inputPath)
 	// 执行转换命令
-	cmd := exec.Command("magick", srcFullPath, outputPath)
+	cmd := exec.Command(exeCommand, srcFullPath, outputPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		AppLogger.Errorf("转换失败: %v, 输出: %s", err, string(output))
