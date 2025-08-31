@@ -8,10 +8,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/qicfan/backup-server/helpers"
+	"github.com/qicfan/backup-server/models"
 )
 
 type PathRequest struct {
 	Path string `json:"path" form:"path"`
+}
+
+type PathExistsRequest struct {
+	Path     string `json:"path" form:"path"`
+	PathType string `json:"pathType" form:"pathType"`
 }
 
 type ExistsResponse struct {
@@ -66,15 +72,24 @@ func HandleCreateDir(c *gin.Context) {
 // path: 目录或文件的路径
 // return: data.exists 是否存在，bool型
 func HandleExists(c *gin.Context) {
-	var req PathRequest
+	var req PathExistsRequest
 	if err := c.ShouldBind(&req); err != nil {
 		helpers.AppLogger.Warnf("Invalid request: %v", err)
 		c.JSON(http.StatusBadRequest, APIResponse[any]{Code: BadRequest, Message: "参数错误: " + err.Error(), Data: nil})
 		return
 	}
-	fullPath := filepath.Join(helpers.UPLOAD_ROOT_DIR, req.Path)
-	exists := helpers.FileExists(fullPath)
-	helpers.AppLogger.Infof("Check exists: %s : %s : %v", req.Path, fullPath, exists)
+	var exists bool
+	if req.PathType == "1" {
+		fullPath := filepath.Join(helpers.UPLOAD_ROOT_DIR, req.Path)
+		exists = helpers.FileExists(fullPath)
+		helpers.AppLogger.Infof("Check exists: %s : %s : %v", req.Path, fullPath, exists)
+	} else {
+		// req.Path是Photos.fileUri
+		_, photoErr := models.GetPhotoByFileUri(req.Path)
+		exists = photoErr == nil
+		helpers.AppLogger.Infof("Check exists: %s : %v", req.Path, exists)
+	}
+
 	c.JSON(http.StatusOK, APIResponse[map[string]bool]{Code: Success, Message: "", Data: map[string]bool{"exists": exists}})
 }
 
