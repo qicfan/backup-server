@@ -44,7 +44,10 @@ func Thumbnail(path, size string) (string, error) {
 	thumbnailPath := GetThumbnailFilename(path, size)
 	if strings.HasPrefix(path, "/") {
 		srcFullPath = path
-		thumbnailPath = fmt.Sprintf("%s_%s.jpg", filepath.Base(srcFullPath), size)
+		thumbnailPath = fmt.Sprintf("%s_%s.jpg", srcFullPath, size)
+		AppLogger.Infof("使用绝对路径:%s, 缩略图路径：%s", path, thumbnailPath)
+	} else {
+		AppLogger.Infof("使用相对路径:%s => %s, 缩略图路径：%s", path, srcFullPath, thumbnailPath)
 	}
 
 	if !FileExists(thumbnailPath) {

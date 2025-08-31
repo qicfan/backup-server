@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
+	"time"
 
 	"github.com/qicfan/backup-server/helpers"
 	"github.com/qicfan/backup-server/models"
@@ -31,7 +31,9 @@ type FileChunk struct {
 }
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	ReadBufferSize:  1024 * 1024 * 150, // 150MB
+	WriteBufferSize: 1024 * 1024 * 10,  // 10MB
+	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
 func HandleUpload(c *gin.Context) {
@@ -53,8 +55,12 @@ func HandleUpload(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
+	// 设置300秒超时
+	timeoutSec := 300
 	// conn.WriteMessage(websocket.TextMessage, []byte("hello, welcome connect this ws"))
 	for {
+		// 设置读取超时时间
+		_ = conn.SetReadDeadline(time.Now().Add(time.Duration(timeoutSec) * time.Second))
 		// 先收JSON帧
 		mt, msg, err := conn.ReadMessage()
 		if err != nil {
@@ -113,6 +119,7 @@ func HandleUpload(c *gin.Context) {
 			}
 		}
 		if complete {
+			helpers.AppLogger.Infof("所有分片上传完成，开始合并文件: %s", targetFile)
 			// 合并所有chunk
 			out, err := os.OpenFile(targetFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 			if err != nil {
@@ -145,36 +152,4 @@ func HandleUpload(c *gin.Context) {
 			_ = conn.WriteMessage(websocket.TextMessage, msg)
 		}
 	}
-}
-
-// 查询指定文件已上传分片索引及hash
-func HandleUploadStatus(c *gin.Context) {
-	fileName := c.Query("file")
-	chunkCountStr := c.Query("chunkCount")
-	if fileName == "" || chunkCountStr == "" {
-		c.JSON(400, APIResponse[any]{Code: BadRequest, Message: "参数缺失", Data: nil})
-		return
-	}
-	chunkCount, err := strconv.Atoi(chunkCountStr)
-	if err != nil || chunkCount <= 0 {
-		c.JSON(400, APIResponse[any]{Code: BadRequest, Message: "chunkCount参数错误", Data: nil})
-		return
-	}
-	relPath := filepath.Dir(fileName)
-	targetPath := filepath.Join(helpers.UPLOAD_ROOT_DIR, relPath)
-	targetFile := filepath.Join(targetPath, filepath.Base(fileName))
-	result := make([]map[string]any, 0, chunkCount)
-	for i := 0; i < chunkCount; i++ {
-		tempName := fmt.Sprintf("%s.chunk%d", targetFile, i)
-		info := map[string]any{"index": i, "exists": false, "hash": ""}
-		if fi, err := os.Stat(tempName); err == nil && fi.Size() > 0 {
-			data, err := os.ReadFile(tempName)
-			if err == nil {
-				info["exists"] = true
-				info["hash"] = helpers.BytesSHA256(data)
-			}
-		}
-		result = append(result, info)
-	}
-	c.JSON(200, APIResponse[any]{Code: Success, Message: "", Data: result})
 }
