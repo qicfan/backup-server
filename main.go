@@ -39,6 +39,7 @@ func main() {
 	api.Use(controllers.JWTAuthMiddleware())
 	{
 		api.POST("/exists", controllers.HandleExists)
+		api.POST("/exists-checksum", controllers.HandleChecksumExists)
 		api.POST("/listdir", controllers.HandleListDir)
 		api.POST("/createdir", controllers.HandleCreateDir)
 	}
