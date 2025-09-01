@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -90,6 +91,30 @@ func GetPhotoByFileUri(fileUri string) (*Photo, error) {
 		return nil, err
 	}
 	return &photo, nil
+}
+
+// 判断PreChecksum是否存在
+func CheckPhotoPreChecksum(PreChecksum string) (bool, error) {
+	var photo Photo
+	if err := helpers.Db.Where("pre_checksum = ?", PreChecksum).First(&photo).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// 判断checksum是否存在
+func CheckPhotoChecksum(Checksum string) (bool, error) {
+	var photo Photo
+	if err := helpers.Db.Where("checksum = ?", Checksum).First(&photo).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // 根据路径删除一张照片
