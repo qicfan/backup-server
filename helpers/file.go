@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -81,38 +82,22 @@ func FileExists(path string) bool {
 	return err == nil || os.IsExist(err)
 }
 
-// 计算文件整体SHA256
-func FileSHA256(path string) (string, error) {
+// 计算文件整体SHA1
+func FileSHA1(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
-	h := sha256.New()
+	h := sha1.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// 计算文件前512字节SHA256
-func FileHeadSHA256(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	buf := make([]byte, 512)
-	n, err := f.Read(buf)
-	if err != nil && err != io.EOF {
-		return "", err
-	}
-	h := sha256.Sum256(buf[:n])
-	return hex.EncodeToString(h[:]), nil
-}
-
-// 计算文件最后512字节SHA256
-func FileTailSHA256(path string) (string, error) {
+// 计算文件64kb到65kb的sha1，如果文件大小不足65kb则计算文件最后1kb的sha1
+func FileHeadSHA1(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", err
@@ -123,22 +108,35 @@ func FileTailSHA256(path string) (string, error) {
 		return "", err
 	}
 	size := fi.Size()
-	if size < 512 {
-		// 文件不足512字节，直接读全部
-		buf := make([]byte, size)
-		_, err := f.ReadAt(buf, 0)
+	var buf []byte
+	if size >= 65*1024 {
+		// 读取64kb到65kb区间
+		buf = make([]byte, 1024)
+		if _, err := f.Seek(64*1024, io.SeekStart); err != nil {
+			return "", err
+		}
+		n, err := f.Read(buf)
 		if err != nil && err != io.EOF {
 			return "", err
 		}
-		h := sha256.Sum256(buf)
-		return hex.EncodeToString(h[:]), nil
+		buf = buf[:n]
+	} else {
+		// 文件不足65kb，读取最后1kb
+		readSize := int64(1024)
+		if size < 1024 {
+			readSize = size
+		}
+		buf = make([]byte, readSize)
+		if _, err := f.Seek(size-readSize, io.SeekStart); err != nil {
+			return "", err
+		}
+		n, err := f.Read(buf)
+		if err != nil && err != io.EOF {
+			return "", err
+		}
+		buf = buf[:n]
 	}
-	buf := make([]byte, 512)
-	_, err = f.ReadAt(buf, size-512)
-	if err != nil && err != io.EOF {
-		return "", err
-	}
-	h := sha256.Sum256(buf)
+	h := sha1.Sum(buf)
 	return hex.EncodeToString(h[:]), nil
 }
 

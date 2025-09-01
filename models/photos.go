@@ -28,9 +28,8 @@ type Photo struct {
 	FileURI            string    `json:"fileUri"`               // 鸿蒙系统的照片资源的URI，可以用来查询照片是否存在，如果有这个字段代表本地存在该照片
 	MTime              int64     `json:"mtime"`                 // 照片的最后修改时间，Unix时间戳，单位秒
 	CTime              int64     `json:"ctime"`                 // 照片的创建时间，Unix时间戳，单位秒
-	Pre512SHA256       string    `json:"pre512"`                // 照片的前512位SHA256哈希值，用来供客户端对大文件进行是否存在判断
-	Last512SHA256      string    `json:"last512"`               // 照片的后512位SHA256哈希值，用来供客户端对大文件进行是否存在判断
-	Sha256             string    `json:"sha256"`                // 照片的SHA256哈希值，用来判定照片的唯一性
+	PreChecksum        string    `json:"pre_checksum"`          // 照片的64kb-65kb之间的1kb做sha1来判断是否一致，如果这个值有重复则判断完整的checksum是否一致
+	Checksum           string    `json:"checksum"`              // 照片的SHA1哈希值，用来判定照片的唯一性
 }
 
 // 返回绝对路径
@@ -46,7 +45,7 @@ func (p *Photo) Update() error {
 }
 
 // 插入一张照片
-func InsertPhoto(name string, path string, size int64, photoType PhotoType, livePhotoVideoPath string, fileUri string, mtime int64, ctime int64) error {
+func InsertPhoto(name string, path string, size int64, photoType PhotoType, livePhotoVideoPath string, fileUri string, mtime int64, ctime int64, preChecksum string, checksum string) error {
 	if mtime == 0 {
 		mtime = time.Now().Unix()
 	}
@@ -62,6 +61,8 @@ func InsertPhoto(name string, path string, size int64, photoType PhotoType, live
 		FileURI:            fileUri,
 		MTime:              mtime,
 		CTime:              ctime,
+		PreChecksum:        preChecksum,
+		Checksum:           checksum,
 	}
 	fullPath := photo.FullPath()
 	if !helpers.FileExists(fullPath) {

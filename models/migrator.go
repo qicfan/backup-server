@@ -20,20 +20,23 @@ func Migrate() {
 	// 如果不存在则初始化所有表
 	var migrator Migrator = Migrator{}
 	if !helpers.Db.Migrator().HasTable(Migrator{}) {
-		helpers.Db.AutoMigrate(Migrator{})
+		helpers.Db.AutoMigrate(Migrator{}, Photo{})
 		migrator = Migrator{BaseModel: BaseModel{ID: 1}, VersionCode: 1} // 初始版本为1
 		helpers.Db.Create(&migrator)
-		helpers.AppLogger.Info("初始化数据库版本表")
+		helpers.AppLogger.Info("初始化数据库成功")
 	}
 	err := helpers.Db.Model(&migrator).First(&migrator).Error
 	if err != nil {
 		helpers.AppLogger.Errorf("获取数据库版本表失败：%v", err)
 	} else {
-		helpers.AppLogger.Infof("数据库版本表存在，当前数据库版本：%d", migrator.VersionCode)
+		helpers.AppLogger.Infof("当前数据库版本：%d", migrator.VersionCode)
 	}
 	if migrator.VersionCode == 1 {
 		helpers.Db.AutoMigrate(Photo{})
-
+		migrator.updateVersion()
+	}
+	if migrator.VersionCode == 2 {
+		helpers.Db.AutoMigrate(Photo{})
 		migrator.updateVersion()
 	}
 }
