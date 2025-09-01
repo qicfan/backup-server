@@ -39,6 +39,12 @@ func Migrate() {
 		helpers.Db.AutoMigrate(Photo{})
 		migrator.updateVersion()
 	}
+	if migrator.VersionCode == 3 {
+		helpers.Db.AutoMigrate(Photo{})
+		// 将photo表所有数据的source_id字段更新为0
+		helpers.Db.Model(&Photo{}).Where("id > ?", 0).Update("source_id", 0)
+		migrator.updateVersion()
+	}
 }
 
 func (m *Migrator) updateVersion() {

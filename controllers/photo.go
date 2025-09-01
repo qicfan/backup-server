@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"fmt"
 
@@ -15,9 +16,12 @@ import (
 )
 
 type DownloadQuery struct {
-	Path string `json:"path" form:"path"` // 相对路径
-	Cos  string `json:"cos" form:"cos"`   // 客户端操作系统
-	Live int    `json:"live" form:"live"` // 是否为动态照片
+	Path          string `json:"path" form:"path"`                       // 相对路径
+	Cos           string `json:"cos" form:"cos"`                         // 客户端操作系统
+	Live          int    `json:"live" form:"live"`                       // 是否为动态照片
+	Transcode     int    `json:"transcode" form:"transcode"`             // 是否转码，0-不转码，1-转码，默认0
+	TransImageExt string `json:"trans_image_ext" form:"trans_image_ext"` // 转码后图片的扩展名
+	TransVideoExt string `json:"trans_video_ext" form:"trans_video_ext"` // 转码后视频的扩展名
 }
 
 // 查询图片的的缩略图，构造一个请求
@@ -101,38 +105,66 @@ func HandlePhotoDownload(c *gin.Context) {
 		c.JSON(http.StatusNotFound, APIResponse[any]{Code: BadRequest, Message: "文件未找到", Data: nil})
 		return
 	}
-	_, statErr := os.Stat(fullPath)
-	if statErr != nil {
-		helpers.AppLogger.Errorf("文件状态获取失败: %v", statErr)
-		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "文件状态获取失败", Data: nil})
+	// 查找photo
+	photo, err := models.GetPhotoByPath(path)
+	if err != nil {
+		helpers.AppLogger.Errorf("查找照片失败: %v", err)
+		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "查找照片失败", Data: nil})
 		return
 	}
-	ext := strings.ToLower(filepath.Ext(path))
-	// 如果是华为下载苹果的额动态照片资源则进行转码
-	if clientOS == helpers.HMOS && isLive {
-		if ext == ".heic" {
-			// HEIC照片转码成JPG
-			jpgPath, err := helpers.HEICToJPG(path)
-			if err != nil {
-				helpers.AppLogger.Errorf("HEIC转JPG失败: %v", err)
-				c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "HEIC转JPG失败", Data: nil})
-				return
-			}
-			fullPath = jpgPath
+	var destPath = path
+	var destFullPath = fullPath
+	var livePhotoVideoPath = photo.LivePhotoVideoPath
+	var size int64 = 0
+	var preChecksum string
+	var checksum string
+	if helpers.IsImage(path) && queryParams.Transcode == 1 {
+		if isLive {
+			// 如果是动态照片的图片，则处理视频处理
+			livePhotoVideoPath = fmt.Sprintf("%s%s", photo.LivePhotoVideoPath, queryParams.TransVideoExt)
 		}
-		if ext == ".mov" {
-			// 华为下载.mov，转码成.mp4
-			mp4Path, err := helpers.MovToMp4(path)
-			if err != nil {
-				helpers.AppLogger.Errorf("MOV转MP4失败: %v", err)
-				c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "MOV转MP4失败", Data: nil})
-				return
-			}
-			fullPath = mp4Path
+		var transErr error
+		// 进行图片转码
+		helpers.AppLogger.Infof("进行图片转码: %s", path)
+		if destPath, destFullPath, transErr = helpers.TransImage(path, queryParams.TransImageExt); transErr != nil {
+			helpers.AppLogger.Errorf("图片转码失败: %v", transErr)
+			c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "图片转码失败", Data: nil})
+			return
+		} else {
+			helpers.AppLogger.Infof("图片转码成功: %s -> %s", path, destPath)
 		}
 	}
-	// 超过10MB，流式传输
-	c.FileAttachment(fullPath, filepath.Base(fullPath))
+	if helpers.IsVideo(path) && queryParams.Transcode == 1 {
+		// 进行视频转码
+		var transErr error
+		helpers.AppLogger.Infof("进行视频转码: %s", path)
+		if destPath, destFullPath, transErr = helpers.TransVideo(path, queryParams.TransVideoExt); transErr != nil {
+			helpers.AppLogger.Errorf("视频转码失败: %v", transErr)
+			c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "视频转码失败", Data: nil})
+			return
+		} else {
+			helpers.AppLogger.Infof("视频转码成功: %s -> %s", path, destPath)
+		}
+	}
+	if queryParams.Transcode == 1 {
+		if fileInfo, err := os.Stat(destFullPath); err == nil {
+			size = fileInfo.Size()
+		}
+		// 修改文件的创建时间和修改时间为photo的MTime和CTime（秒转time.Time）
+		mtime := time.Unix(photo.MTime, 0)
+		ctime := time.Unix(photo.CTime, 0)
+		os.Chtimes(destFullPath, mtime, ctime)
+		preChecksum, _ = helpers.FileHeadSHA1(destFullPath)
+		checksum, _ = helpers.FileSHA1(destFullPath)
+		// 写入数据库
+		if err := models.InsertPhoto(photo.Name, destPath, size, photo.Type, livePhotoVideoPath, "", photo.MTime, photo.CTime, preChecksum, checksum, photo.ID); err != nil {
+			helpers.AppLogger.Errorf("将转码的Photo插入数据库失败: %v", err)
+			c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "更新照片路径失败", Data: nil})
+			return
+		}
+	}
+	// 流式传输
+	c.FileAttachment(fullPath, filepath.Base(destFullPath))
 }
 
 type PhotoListRequest struct {
@@ -164,6 +196,7 @@ type PhotoUpdateRequest struct {
 	FileUri string `json:"fileUri" form:"fileUri" binding:"required"`
 }
 
+// 更新照片的fileUri
 func HandlePhotoUpdate(c *gin.Context) {
 	var req PhotoUpdateRequest
 	if err := c.ShouldBind(&req); err != nil {
@@ -183,5 +216,22 @@ func HandlePhotoUpdate(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "更新照片失败: " + err.Error(), Data: nil})
 		return
 	}
+	// 将sourceID=photo.ID的记录的fileUri也更新
+	models.UpdatePhotoFileUri(photo.ID, photo.FileURI)
+	// if photo.SourceId != 0 {
+	// 	// 根据sourceId查询photo
+	// 	sourcePhoto, err := models.GetPhotoById(photo.SourceId)
+	// 	if err != nil {
+	// 		helpers.AppLogger.Errorf("根据sourceId查询照片失败: %v", err)
+	// 		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "根据sourceId查询照片失败: " + err.Error(), Data: nil})
+	// 		return
+	// 	}
+	// 	sourcePhoto.FileURI = photo.FileURI
+	// 	if err := sourcePhoto.Update(); err != nil {
+	// 		helpers.AppLogger.Errorf("更新源照片失败: %v", err)
+	// 		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "更新源照片失败: " + err.Error(), Data: nil})
+	// 		return
+	// 	}
+	// }
 	c.JSON(http.StatusOK, APIResponse[any]{Code: Success, Message: "更新成功", Data: req.Path})
 }

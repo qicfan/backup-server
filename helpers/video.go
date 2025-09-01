@@ -6,6 +6,24 @@ import (
 	"path/filepath"
 )
 
+// 将视频转为指定的格式
+// srcPath: 源视频路径，不包含UPLOAD_ROOT_DIR
+// transExt: 目标视频格式
+func TransVideo(srcPath string, transExt string) (string, string, error) {
+	destPath := fmt.Sprintf("%s%s", srcPath, transExt)
+	destFullPath := filepath.Join(UPLOAD_ROOT_DIR, destPath)
+	if FileExists(destFullPath) {
+		return destPath, destFullPath, nil
+	}
+	srcFullPath := filepath.Join(UPLOAD_ROOT_DIR, srcPath)
+	cmd := exec.Command("ffmpeg", "-y", "-i", srcFullPath, "-c:v", "copy", "-c:a", "aac", destFullPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", "", fmt.Errorf("ffmpeg 转码失败: %v, 输出: %s", err, string(output))
+	}
+	return destPath, destFullPath, nil
+}
+
 // MovToMp4 将 mov 视频转为 mp4 格式
 func MovToMp4(srcPath string) (string, error) {
 	dstPath := GetConvertFilename(srcPath, ".mp4")

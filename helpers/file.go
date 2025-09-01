@@ -12,27 +12,25 @@ import (
 	"strings"
 )
 
-var (
-	ImageExtensions = []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".heic"}
-	VideoExtensions = []string{".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm"}
-)
+// var (
+// 	ImageExtensions = []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".heic"}
+// 	VideoExtensions = []string{".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm"}
+// )
 
-func IsImage(ext string) bool {
-	ext = strings.ToLower(ext)
-	for _, e := range ImageExtensions {
-		if ext == e {
-			return true
-		}
+func IsImage(filePath string) bool {
+	mimeType, _ := GetFileMIME(filePath)
+	if strings.HasPrefix(mimeType, "image/") {
+		// 是图片
+		return true
 	}
 	return false
 }
 
-func IsVideo(ext string) bool {
-	ext = strings.ToLower(ext)
-	for _, e := range VideoExtensions {
-		if ext == e {
-			return true
-		}
+func IsVideo(filePath string) bool {
+	mimeType, _ := GetFileMIME(filePath)
+	if strings.HasPrefix(mimeType, "video/") {
+		// 是视频
+		return true
 	}
 	return false
 }

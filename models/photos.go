@@ -31,6 +31,7 @@ type Photo struct {
 	CTime              int64     `json:"ctime"`                 // 照片的创建时间，Unix时间戳，单位秒
 	PreChecksum        string    `json:"pre_checksum"`          // 照片的64kb-65kb之间的1kb做sha1来判断是否一致，如果这个值有重复则判断完整的checksum是否一致
 	Checksum           string    `json:"checksum"`              // 照片的SHA1哈希值，用来判定照片的唯一性
+	SourceId           uint      `json:"source_id"`             // 照片的来源ID，转码前的原图ID
 }
 
 // 返回绝对路径
@@ -46,7 +47,7 @@ func (p *Photo) Update() error {
 }
 
 // 插入一张照片
-func InsertPhoto(name string, path string, size int64, photoType PhotoType, livePhotoVideoPath string, fileUri string, mtime int64, ctime int64, preChecksum string, checksum string) error {
+func InsertPhoto(name string, path string, size int64, photoType PhotoType, livePhotoVideoPath string, fileUri string, mtime int64, ctime int64, preChecksum string, checksum string, sourceId uint) error {
 	if mtime == 0 {
 		mtime = time.Now().Unix()
 	}
@@ -64,6 +65,7 @@ func InsertPhoto(name string, path string, size int64, photoType PhotoType, live
 		CTime:              ctime,
 		PreChecksum:        preChecksum,
 		Checksum:           checksum,
+		SourceId:           sourceId,
 	}
 	fullPath := photo.FullPath()
 	if !helpers.FileExists(fullPath) {
@@ -73,6 +75,15 @@ func InsertPhoto(name string, path string, size int64, photoType PhotoType, live
 	return helpers.EnqueueDBWriteSync(func(db *gorm.DB) error {
 		return db.Create(&photo).Error
 	})
+}
+
+// 通过ID查询照片
+func GetPhotoById(id uint) (*Photo, error) {
+	var photo Photo
+	if err := helpers.Db.Where("id = ?", id).First(&photo).Error; err != nil {
+		return nil, err
+	}
+	return &photo, nil
 }
 
 // 通过路径查询照片
@@ -91,6 +102,13 @@ func GetPhotoByFileUri(fileUri string) (*Photo, error) {
 		return nil, err
 	}
 	return &photo, nil
+}
+
+// 更新sourceId对应的记录的fileUri字段
+func UpdatePhotoFileUri(sourceId uint, fileUri string) error {
+	return helpers.EnqueueDBWriteSync(func(db *gorm.DB) error {
+		return db.Model(&Photo{}).Where("source_id = ?", sourceId).Update("file_uri", fileUri).Error
+	})
 }
 
 // 判断PreChecksum是否存在
@@ -142,12 +160,12 @@ func ListPhotos(page int, pageSize int) (int64, []*Photo, error) {
 	var photos []*Photo = make([]*Photo, 0)
 	// 先查询总数
 	var total int64
-	if err := helpers.Db.Model(&Photo{}).Where("type <> ? OR (type=? AND live_photo_video_path != '')", PhotoTypeLivePhoto, PhotoTypeLivePhoto).Count(&total).Error; err != nil {
+	if err := helpers.Db.Model(&Photo{}).Where("source_id=0 AND (type <> ? OR (type=? AND live_photo_video_path != ''))", PhotoTypeLivePhoto, PhotoTypeLivePhoto).Count(&total).Error; err != nil {
 		return 0, nil, err
 	}
 
 	// 再分页查询列表
-	if err := helpers.Db.Offset((page-1)*pageSize).Limit(pageSize).Where("type <> ? OR (type=? AND live_photo_video_path != '')", PhotoTypeLivePhoto, PhotoTypeLivePhoto).Order("m_time DESC").Find(&photos).Error; err != nil {
+	if err := helpers.Db.Offset((page-1)*pageSize).Limit(pageSize).Where("source_id=0 AND (type <> ? OR (type=? AND live_photo_video_path != ''))", PhotoTypeLivePhoto, PhotoTypeLivePhoto).Order("m_time DESC").Find(&photos).Error; err != nil {
 		helpers.AppLogger.Error("查询照片列表失败: ", err)
 		return 0, nil, err
 	}

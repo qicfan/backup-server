@@ -36,7 +36,7 @@ func RefreshPhotoCollection() {
 		ext := filepath.Ext(name)
 		baseName := strings.TrimSuffix(path, ext)
 		ext = strings.ToLower(ext)
-		if helpers.IsImage(ext) {
+		if helpers.IsImage(name) {
 			// 查找是否有同名的mp4文件
 			livePhotoVideoFullPath = baseName + ".mp4"
 			livePhotoVideoFullPath1 = baseName + ".MP4"
@@ -73,7 +73,7 @@ func RefreshPhotoCollection() {
 				}
 			}
 		}
-		if helpers.IsImage(ext) || helpers.IsVideo(ext) {
+		if helpers.IsImage(name) || helpers.IsVideo(name) {
 			// 查询数据库是否存在
 			photo, photoGetErr := GetPhotoByPath(relPath)
 			if photoGetErr != nil && photoGetErr == gorm.ErrRecordNotFound {
@@ -84,7 +84,7 @@ func RefreshPhotoCollection() {
 				// helpers.AppLogger.Errorf("%s 没有数据库记录，准备插入: ", relPath)
 				// 读取文件的修改时间
 				modificationTime := info.ModTime().Unix()
-				if insertErr := InsertPhoto(name, relPath, info.Size(), photoType, livePhotoVideoPath, "", modificationTime, modificationTime, preChecksum, checksum); insertErr != nil {
+				if insertErr := InsertPhoto(name, relPath, info.Size(), photoType, livePhotoVideoPath, "", modificationTime, modificationTime, preChecksum, checksum, 0); insertErr != nil {
 					helpers.AppLogger.Error("插入数据库失败: ", insertErr)
 				}
 				return nil

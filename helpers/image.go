@@ -89,3 +89,32 @@ func HEICToJPG(inputPath string) (string, error) {
 	AppLogger.Infof("转换成功: %s -> %s", inputPath, outputPath)
 	return outputPath, nil
 }
+
+// 将图片进行转码
+// srcPath：源图片路径，不包含UPLOAD_ROOT_DIR
+// format: 目标图片格式，如 ".jpg", ".png"
+func TransImage(srcPath string, format string) (string, string, error) {
+	// 检查ImageMagick是否安装
+	exeCommand := "magick"
+	if _, err := exec.LookPath(exeCommand); err != nil {
+		AppLogger.Errorf("%s未安装: %v", exeCommand, err)
+		exeCommand = "convert"
+		if _, err := exec.LookPath(exeCommand); err != nil {
+			return "", "", fmt.Errorf("%s未安装: %v", exeCommand, err)
+		}
+	}
+	srcFullPath := filepath.Join(UPLOAD_ROOT_DIR, srcPath)
+	destPath := fmt.Sprintf("%s%s", srcPath, format)
+	destFullPath := filepath.Join(UPLOAD_ROOT_DIR, destPath)
+
+	// 执行转换命令
+	cmd := exec.Command(exeCommand, srcFullPath, destFullPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		AppLogger.Errorf("转换失败: %v, 输出: %s", err, string(output))
+		return "", "", fmt.Errorf("转换失败: %v, 输出: %s", err, string(output))
+	}
+
+	AppLogger.Infof("转换成功: %s -> %s", srcPath, destPath)
+	return destPath, destFullPath, nil
+}

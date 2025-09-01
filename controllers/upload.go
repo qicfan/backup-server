@@ -152,10 +152,14 @@ func HandleUpload(c *gin.Context) {
 				helpers.AppLogger.Infof("Checksum exists:%s => %s", chunk.FileName, checksum)
 			} else {
 				helpers.AppLogger.Infof("Checksum not exists: %s", checksum)
-				if err := models.InsertPhoto(fileName, chunk.FileName, chunk.Size, photoType, livePhotoVideoPath, chunk.FileURI, chunk.MTime, chunk.CTime, preChecksum, checksum); err != nil {
+				if err := models.InsertPhoto(fileName, chunk.FileName, chunk.Size, photoType, livePhotoVideoPath, chunk.FileURI, chunk.MTime, chunk.CTime, preChecksum, checksum, 0); err != nil {
 					helpers.AppLogger.Error("照片写入数据库错误:", err)
 				}
 			}
+			// 修改文件的ctime和mtime
+			mtime := time.Unix(chunk.MTime, 0)
+			ctime := time.Unix(chunk.CTime, 0)
+			os.Chtimes(targetFile, mtime, ctime)
 			// 通知客户端上传完成
 			resp := APIResponse[map[string]string]{Code: Success, Message: "上传完成", Data: map[string]string{"path": chunk.FileName}}
 			msg, _ := json.Marshal(resp)
