@@ -143,8 +143,18 @@ func HandleUpload(c *gin.Context) {
 			// 插入数据库
 			photoType := chunk.Type
 			livePhotoVideoPath := chunk.LivePhotoVideoPath
-			if err := models.InsertPhoto(fileName, chunk.FileName, chunk.Size, photoType, livePhotoVideoPath, chunk.FileURI, chunk.MTime, chunk.CTime); err != nil {
-				helpers.AppLogger.Error("照片写入数据库错误:", err)
+			// 计算sha1
+			preChecksum, _ := helpers.FileHeadSHA1(targetFile)
+			checksum, _ := helpers.FileSHA1(targetFile)
+			helpers.AppLogger.Infof("计算得到的照片哈希值: pre=%s, full=%s", preChecksum, checksum)
+			// 检查是否存在checksum相同的照片
+			if exists, _ := models.CheckPhotoChecksum(checksum); exists {
+				helpers.AppLogger.Infof("Checksum exists:%s => %s", chunk.FileName, checksum)
+			} else {
+				helpers.AppLogger.Infof("Checksum not exists: %s", checksum)
+				if err := models.InsertPhoto(fileName, chunk.FileName, chunk.Size, photoType, livePhotoVideoPath, chunk.FileURI, chunk.MTime, chunk.CTime, preChecksum, checksum); err != nil {
+					helpers.AppLogger.Error("照片写入数据库错误:", err)
+				}
 			}
 			// 通知客户端上传完成
 			resp := APIResponse[map[string]string]{Code: Success, Message: "上传完成", Data: map[string]string{"path": chunk.FileName}}
