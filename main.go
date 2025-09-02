@@ -24,6 +24,9 @@ func main() {
 	logger := helpers.NewLogger("web.log")
 	helpers.AppLogger = helpers.NewLogger("app.log")
 	initUploadDir()
+	helpers.AppLogger.Infof("Backup Server %s (%s) starting...\n", Version, PublishDate)
+	helpers.AppLogger.Infof("运行目录: %s\n", helpers.RootDir)
+	helpers.AppLogger.Infof("上传目录: %s\n", helpers.UPLOAD_ROOT_DIR)
 	helpers.InitDb()                // 初始化数据库组件
 	models.Migrate()                // 执行数据库迁移
 	helpers.CleanupUploadingFiles() // 清理所有未完成的上传临时文件

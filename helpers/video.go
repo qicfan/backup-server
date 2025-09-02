@@ -4,12 +4,26 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"sync"
 )
+
+// ffmpeg转码并发队列
+var transVideoQueue = make(chan struct{}, 3)
+var transVideoOnce sync.Once
 
 // 将视频转为指定的格式
 // srcPath: 源视频路径，不包含UPLOAD_ROOT_DIR
 // transExt: 目标视频格式
 func TransVideo(srcPath string, transExt string) (string, string, error) {
+	// 初始化队列（只执行一次）
+	transVideoOnce.Do(func() {
+		for i := 0; i < 3; i++ {
+			transVideoQueue <- struct{}{}
+		}
+	})
+	// 获取队列令牌
+	<-transVideoQueue
+	defer func() { transVideoQueue <- struct{}{} }()
 	destPath := fmt.Sprintf("%s%s", srcPath, transExt)
 	destFullPath := filepath.Join(UPLOAD_ROOT_DIR, destPath)
 	if FileExists(destFullPath) {
@@ -24,28 +38,22 @@ func TransVideo(srcPath string, transExt string) (string, string, error) {
 	return destPath, destFullPath, nil
 }
 
-// MovToMp4 将 mov 视频转为 mp4 格式
-func MovToMp4(srcPath string) (string, error) {
-	dstPath := GetConvertFilename(srcPath, ".mp4")
-	if FileExists(dstPath) {
-		return dstPath, nil
-	}
-	srcFullPath := filepath.Join(UPLOAD_ROOT_DIR, srcPath)
-	cmd := exec.Command("ffmpeg", "-y", "-i", srcFullPath, "-c:v", "copy", "-c:a", "aac", dstPath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("ffmpeg 转码失败: %v, 输出: %s", err, string(output))
-	}
-	return dstPath, nil
-}
-
 // ExtractVideoThumbnail 提取视频第一秒画面生成缩略图
 // 先提取图片，再生成缩略图
 func ExtractVideoThumbnail(videoPath string, size string) (string, error) {
 	coverFullPath := GetConvertFilename(videoPath, ".jpg")
+	AppLogger.Infof("视频封面路径: %s", coverFullPath)
 	srcFullPath := filepath.Join(UPLOAD_ROOT_DIR, videoPath)
 	if !FileExists(coverFullPath) {
-		cmd := exec.Command("ffmpeg", "-y", "-i", srcFullPath, "-ss", "1", "-vframes", "1", coverFullPath)
+		// 队列控制ffmpeg并发
+		transVideoOnce.Do(func() {
+			for i := 0; i < 3; i++ {
+				transVideoQueue <- struct{}{}
+			}
+		})
+		<-transVideoQueue
+		defer func() { transVideoQueue <- struct{}{} }()
+		cmd := exec.Command("ffmpeg", "-y", "-i", srcFullPath, "-ss", "1", "-vframes", "1", "-update", "1", coverFullPath)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			AppLogger.Errorf("提取视频缩略图失败: %v, 输出: %s", err, string(output))

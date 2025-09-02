@@ -54,8 +54,7 @@ func HandleGetThumbnail(c *gin.Context) {
 		return
 	}
 	var thumbnailPath string = ""
-	ext := strings.ToLower(filepath.Ext(fullPath))
-	if helpers.IsVideo(ext) {
+	if helpers.IsVideo(fullPath) {
 		var videoErr error
 		thumbnailPath, videoErr = helpers.ExtractVideoThumbnail(path, size)
 		if videoErr != nil {
@@ -63,7 +62,8 @@ func HandleGetThumbnail(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "生成视频缩略图失败: " + videoErr.Error(), Data: nil})
 			return
 		}
-	} else {
+	}
+	if helpers.IsImage(fullPath) {
 		var thumbNailErr error
 		thumbnailPath, thumbNailErr = helpers.Thumbnail(path, size)
 		if thumbNailErr != nil {
@@ -118,7 +118,7 @@ func HandlePhotoDownload(c *gin.Context) {
 	var size int64 = 0
 	var preChecksum string
 	var checksum string
-	if helpers.IsImage(path) && queryParams.Transcode == 1 {
+	if helpers.IsImage(fullPath) && queryParams.Transcode == 1 {
 		if isLive {
 			// 如果是动态照片的图片，则处理视频处理
 			livePhotoVideoPath = fmt.Sprintf("%s%s", photo.LivePhotoVideoPath, queryParams.TransVideoExt)
@@ -134,7 +134,7 @@ func HandlePhotoDownload(c *gin.Context) {
 			helpers.AppLogger.Infof("图片转码成功: %s -> %s", path, destPath)
 		}
 	}
-	if helpers.IsVideo(path) && queryParams.Transcode == 1 {
+	if helpers.IsVideo(fullPath) && queryParams.Transcode == 1 {
 		// 进行视频转码
 		var transErr error
 		helpers.AppLogger.Infof("进行视频转码: %s", path)

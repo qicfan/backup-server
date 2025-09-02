@@ -12,18 +12,23 @@ import (
 // srcFilePath: 原图路径，包含文件名
 func GetThumbnailFilename(srcFilePath string, size string) string {
 	relPath := filepath.Dir(srcFilePath)
+	fileName := filepath.Base(srcFilePath)
+	newName := fmt.Sprintf("%s_%s.jpg", fileName, size)
 	fullPath := filepath.Join(RootDir, "config", "thumbnails", relPath)
 	os.MkdirAll(fullPath, 0755) // 保证路径存在
-	thumbnailName := filepath.Join(fullPath, fmt.Sprintf("%s_%s.jpg", filepath.Base(srcFilePath), size))
+	thumbnailName := filepath.Join(fullPath, newName)
 	return thumbnailName
 }
 
 // 返回转码后的新资源路径
 func GetConvertFilename(srcFilePath string, newExt string) string {
 	relPath := filepath.Dir(srcFilePath)
+	fileName := filepath.Base(srcFilePath)
+	newName := fmt.Sprintf("%s%s", fileName, newExt)
 	fullPath := filepath.Join(RootDir, "config", "converted", relPath)
 	os.MkdirAll(fullPath, 0755) // 保证路径存在
-	convertName := filepath.Join(fullPath, fmt.Sprintf("%s%s", filepath.Base(srcFilePath), newExt))
+	convertName := filepath.Join(fullPath, newName)
+	AppLogger.Infof("GetConvertFilename: %s => %s", srcFilePath, convertName)
 	return convertName
 }
 
@@ -60,34 +65,6 @@ func Thumbnail(path, size string) (string, error) {
 		}
 	}
 	return thumbnailPath, nil
-}
-
-// HeicToJpg 将 HEIC 图片转为 JPG 格式
-func HEICToJPG(inputPath string) (string, error) {
-	// 检查ImageMagick是否安装
-	exeCommand := "magick"
-	if _, err := exec.LookPath(exeCommand); err != nil {
-		AppLogger.Errorf("%s未安装: %v", exeCommand, err)
-		exeCommand = "convert"
-		if _, err := exec.LookPath(exeCommand); err != nil {
-			return "", fmt.Errorf("%s未安装: %v", exeCommand, err)
-		}
-	}
-	outputPath := GetConvertFilename(inputPath, ".jpg")
-	if FileExists(outputPath) {
-		return outputPath, nil
-	}
-	srcFullPath := filepath.Join(UPLOAD_ROOT_DIR, inputPath)
-	// 执行转换命令
-	cmd := exec.Command(exeCommand, srcFullPath, outputPath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		AppLogger.Errorf("转换失败: %v, 输出: %s", err, string(output))
-		return "", fmt.Errorf("转换失败: %v, 输出: %s", err, string(output))
-	}
-
-	AppLogger.Infof("转换成功: %s -> %s", inputPath, outputPath)
-	return outputPath, nil
 }
 
 // 将图片进行转码

@@ -18,7 +18,13 @@ import (
 // )
 
 func IsImage(filePath string) bool {
+	ext := filepath.Ext(filePath)
+	if strings.ToLower(ext) == ".heic" {
+		AppLogger.Infof("IsImage: %s => image/heic", filePath)
+		return true
+	}
 	mimeType, _ := GetFileMIME(filePath)
+	AppLogger.Infof("IsImage: %s => %s", filePath, mimeType)
 	if strings.HasPrefix(mimeType, "image/") {
 		// 是图片
 		return true
@@ -27,7 +33,13 @@ func IsImage(filePath string) bool {
 }
 
 func IsVideo(filePath string) bool {
+	ext := filepath.Ext(filePath)
+	if strings.ToLower(ext) == ".mov" {
+		AppLogger.Infof("IsVideo: %s => video/quicktime", filePath)
+		return true
+	}
 	mimeType, _ := GetFileMIME(filePath)
+	AppLogger.Infof("IsVideo: %s => %s", filePath, mimeType)
 	if strings.HasPrefix(mimeType, "video/") {
 		// 是视频
 		return true
@@ -66,11 +78,19 @@ func GetFileMIME(path string) (string, error) {
 	}
 	defer f.Close()
 	buf := make([]byte, 512)
-	n, err := f.Read(buf)
+	n, err := io.ReadFull(f, buf)
 	if err != nil {
+		if err == io.ErrUnexpectedEOF || err == io.EOF {
+			// 文件不足512字节，使用已读内容
+			if n > 0 {
+				mimeType := http.DetectContentType(buf[:n])
+				return mimeType, nil
+			}
+			return "application/octet-stream", nil
+		}
 		return "", err
 	}
-	mimeType := http.DetectContentType(buf[:n])
+	mimeType := http.DetectContentType(buf)
 	return mimeType, nil
 }
 
