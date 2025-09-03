@@ -69,13 +69,13 @@ func RefreshPhotoCollection() {
 		photo, photoGetErr := GetPhotoByPath(relPath)
 		if photoGetErr != nil && photoGetErr == gorm.ErrRecordNotFound {
 			// 入库前计算SHA1
-			preChecksum, _ := helpers.FileHeadSHA1(path)
+			// preChecksum, _ := helpers.FileHeadSHA1(path)
 			checksum, _ := helpers.FileSHA1(path)
 			// 没有找到记录，插入
 			// helpers.AppLogger.Errorf("%s 没有数据库记录，准备插入: ", relPath)
 			// 读取文件的修改时间
 			modificationTime := info.ModTime().Unix()
-			if insertErr := InsertPhoto(name, relPath, info.Size(), photoType, livePhotoVideoPath, "", modificationTime, modificationTime, preChecksum, checksum, 0); insertErr != nil {
+			if insertErr := InsertPhoto(name, relPath, info.Size(), photoType, livePhotoVideoPath, "", modificationTime, modificationTime, checksum, 0); insertErr != nil {
 				helpers.AppLogger.Error("插入数据库失败: ", insertErr)
 			}
 			return nil
@@ -88,12 +88,12 @@ func RefreshPhotoCollection() {
 				photo.LivePhotoVideoPath = livePhotoVideoPath
 				photo.Update()
 			}
-			if photo.PreChecksum == "" || photo.Checksum == "" {
+			if photo.Checksum == "" {
 				// 入库前计算SHA1
-				preChecksum, _ := helpers.FileHeadSHA1(path)
+				// preChecksum, _ := helpers.FileHeadSHA1(path)
 				checksum, _ := helpers.FileSHA1(path)
-				helpers.AppLogger.Infof("%s 数据库记录需要哈希摘要: PreChecksum %d Checksum %d", relPath, preChecksum, checksum)
-				photo.PreChecksum = preChecksum
+				helpers.AppLogger.Infof("%s 数据库记录需要哈希摘要: PreChecksum %d Checksum %d", relPath, checksum)
+				// photo.PreChecksum = preChecksum
 				photo.Checksum = checksum
 				photo.Update()
 			}

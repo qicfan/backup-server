@@ -116,7 +116,7 @@ func HandlePhotoDownload(c *gin.Context) {
 	var destFullPath = fullPath
 	var livePhotoVideoPath = photo.LivePhotoVideoPath
 	var size int64 = 0
-	var preChecksum string
+	// var preChecksum string
 	var checksum string
 	if helpers.IsImage(fullPath) && queryParams.Transcode == 1 {
 		if isLive {
@@ -154,10 +154,10 @@ func HandlePhotoDownload(c *gin.Context) {
 		mtime := time.Unix(photo.MTime, 0)
 		ctime := time.Unix(photo.CTime, 0)
 		os.Chtimes(destFullPath, mtime, ctime)
-		preChecksum, _ = helpers.FileHeadSHA1(destFullPath)
+		// preChecksum, _ = helpers.FileHeadSHA1(destFullPath)
 		checksum, _ = helpers.FileSHA1(destFullPath)
 		// 写入数据库
-		if err := models.InsertPhoto(photo.Name, destPath, size, photo.Type, livePhotoVideoPath, "", photo.MTime, photo.CTime, preChecksum, checksum, photo.ID); err != nil {
+		if err := models.InsertPhoto(photo.Name, destPath, size, photo.Type, livePhotoVideoPath, "", photo.MTime, photo.CTime, checksum, photo.ID); err != nil {
 			helpers.AppLogger.Errorf("将转码的Photo插入数据库失败: %v", err)
 			c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: BadRequest, Message: "更新照片路径失败", Data: nil})
 			return

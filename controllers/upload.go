@@ -144,15 +144,15 @@ func HandleUpload(c *gin.Context) {
 			photoType := chunk.Type
 			livePhotoVideoPath := chunk.LivePhotoVideoPath
 			// 计算sha1
-			preChecksum, _ := helpers.FileHeadSHA1(targetFile)
+			// preChecksum, _ := helpers.FileHeadSHA1(targetFile)
 			checksum, _ := helpers.FileSHA1(targetFile)
-			helpers.AppLogger.Infof("计算得到的照片哈希值: pre=%s, full=%s", preChecksum, checksum)
+			helpers.AppLogger.Infof("计算得到的照片哈希值: %s", checksum)
 			// 检查是否存在checksum相同的照片
 			if exists, _ := models.CheckPhotoChecksum(checksum); exists {
 				helpers.AppLogger.Infof("Checksum exists:%s => %s", chunk.FileName, checksum)
 			} else {
 				helpers.AppLogger.Infof("Checksum not exists: %s", checksum)
-				if err := models.InsertPhoto(fileName, chunk.FileName, chunk.Size, photoType, livePhotoVideoPath, chunk.FileURI, chunk.MTime, chunk.CTime, preChecksum, checksum, 0); err != nil {
+				if err := models.InsertPhoto(fileName, chunk.FileName, chunk.Size, photoType, livePhotoVideoPath, chunk.FileURI, chunk.MTime, chunk.CTime, checksum, 0); err != nil {
 					helpers.AppLogger.Error("照片写入数据库错误:", err)
 				}
 			}

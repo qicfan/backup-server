@@ -89,19 +89,19 @@ func HandleExists(c *gin.Context) {
 		exists = photoErr == nil
 		helpers.AppLogger.Infof("Check exists: %s : %v", req.Path, exists)
 	}
-	if !exists {
-		// 如果文件不存在则判断PreChecksum是否一致，如果PreChecksum有重复项责判断checksum是否一致，如果checksum也有重复项责判定为重复
-		preChecksum := c.Request.Header.Get("X-Pre-Checksum")
-		if preChecksum != "" {
-			if exists, _ := models.CheckPhotoPreChecksum(preChecksum); exists {
-				helpers.AppLogger.Infof("PreChecksum exists: %s", preChecksum)
-				exists = true
-			} else {
-				helpers.AppLogger.Infof("PreChecksum not exists: %s", preChecksum)
-				exists = false
-			}
-		}
-	}
+	// if !exists {
+	// 	// 如果文件不存在则判断PreChecksum是否一致，如果PreChecksum有重复项责判断checksum是否一致，如果checksum也有重复项责判定为重复
+	// 	preChecksum := c.Request.Header.Get("X-Pre-Checksum")
+	// 	if preChecksum != "" {
+	// 		if exists, _ := models.CheckPhotoPreChecksum(preChecksum); exists {
+	// 			helpers.AppLogger.Infof("PreChecksum exists: %s", preChecksum)
+	// 			exists = true
+	// 		} else {
+	// 			helpers.AppLogger.Infof("PreChecksum not exists: %s", preChecksum)
+	// 			exists = false
+	// 		}
+	// 	}
+	// }
 
 	c.JSON(http.StatusOK, APIResponse[map[string]bool]{Code: Success, Message: "", Data: map[string]bool{"exists": exists}})
 }

@@ -21,17 +21,16 @@ const (
 
 type Photo struct {
 	BaseModel
-	Name               string    `json:"name"`                  // 照片名称，文件名：a.jpg / b.mp4
-	Path               string    `json:"path" gorm:"unique"`    // 照片存储路径，包含照片名称，相对helpers.UPLOAD_ROOT_DIR的路径
-	Size               int64     `json:"size"`                  // 照片大小
-	Type               PhotoType `json:"type"`                  // 照片类型，1-普通照片，2-视频， 3-动态照片
-	LivePhotoVideoPath string    `json:"live_photo_video_path"` // 如果是动态照片，这里存储视频的路径，只有动态照片中的图片会保存该字段，如果是动态照片的视频则该字段为空
-	FileURI            string    `json:"fileUri"`               // 鸿蒙系统的照片资源的URI，可以用来查询照片是否存在，如果有这个字段代表本地存在该照片
-	MTime              int64     `json:"mtime"`                 // 照片的最后修改时间，Unix时间戳，单位秒
-	CTime              int64     `json:"ctime"`                 // 照片的创建时间，Unix时间戳，单位秒
-	PreChecksum        string    `json:"pre_checksum"`          // 照片的64kb-65kb之间的1kb做sha1来判断是否一致，如果这个值有重复则判断完整的checksum是否一致
-	Checksum           string    `json:"checksum"`              // 照片的SHA1哈希值，用来判定照片的唯一性
-	SourceId           uint      `json:"source_id"`             // 照片的来源ID，转码前的原图ID
+	Name               string    `json:"name"`                   // 照片名称，文件名：a.jpg / b.mp4
+	Path               string    `json:"path" gorm:"unique"`     // 照片存储路径，包含照片名称，相对helpers.UPLOAD_ROOT_DIR的路径
+	Size               int64     `json:"size"`                   // 照片大小
+	Type               PhotoType `json:"type"`                   // 照片类型，1-普通照片，2-视频， 3-动态照片
+	LivePhotoVideoPath string    `json:"live_photo_video_path"`  // 如果是动态照片，这里存储视频的路径，只有动态照片中的图片会保存该字段，如果是动态照片的视频则该字段为空
+	FileURI            string    `json:"fileUri"`                // 鸿蒙系统的照片资源的URI，可以用来查询照片是否存在，如果有这个字段代表本地存在该照片
+	MTime              int64     `json:"mtime"`                  // 照片的最后修改时间，Unix时间戳，单位秒
+	CTime              int64     `json:"ctime"`                  // 照片的创建时间，Unix时间戳，单位秒
+	Checksum           string    `json:"checksum" gorm:"unique"` // 照片的SHA1哈希值，用来判定照片的唯一性
+	SourceId           uint      `json:"source_id"`              // 照片的来源ID，转码前的原图ID
 }
 
 // 返回绝对路径
@@ -47,7 +46,7 @@ func (p *Photo) Update() error {
 }
 
 // 插入一张照片
-func InsertPhoto(name string, path string, size int64, photoType PhotoType, livePhotoVideoPath string, fileUri string, mtime int64, ctime int64, preChecksum string, checksum string, sourceId uint) error {
+func InsertPhoto(name string, path string, size int64, photoType PhotoType, livePhotoVideoPath string, fileUri string, mtime int64, ctime int64, checksum string, sourceId uint) error {
 	if mtime == 0 {
 		mtime = time.Now().Unix()
 	}
@@ -63,7 +62,6 @@ func InsertPhoto(name string, path string, size int64, photoType PhotoType, live
 		FileURI:            fileUri,
 		MTime:              mtime,
 		CTime:              ctime,
-		PreChecksum:        preChecksum,
 		Checksum:           checksum,
 		SourceId:           sourceId,
 	}

@@ -20,11 +20,11 @@ import (
 func IsImage(filePath string) bool {
 	ext := filepath.Ext(filePath)
 	if strings.ToLower(ext) == ".heic" {
-		AppLogger.Infof("IsImage: %s => image/heic", filePath)
+		// AppLogger.Infof("IsImage: %s => image/heic", filePath)
 		return true
 	}
 	mimeType, _ := GetFileMIME(filePath)
-	AppLogger.Infof("IsImage: %s => %s", filePath, mimeType)
+	// AppLogger.Infof("IsImage: %s => %s", filePath, mimeType)
 	if strings.HasPrefix(mimeType, "image/") {
 		// 是图片
 		return true
@@ -35,11 +35,11 @@ func IsImage(filePath string) bool {
 func IsVideo(filePath string) bool {
 	ext := filepath.Ext(filePath)
 	if strings.ToLower(ext) == ".mov" {
-		AppLogger.Infof("IsVideo: %s => video/quicktime", filePath)
+		// AppLogger.Infof("IsVideo: %s => video/quicktime", filePath)
 		return true
 	}
 	mimeType, _ := GetFileMIME(filePath)
-	AppLogger.Infof("IsVideo: %s => %s", filePath, mimeType)
+	// AppLogger.Infof("IsVideo: %s => %s", filePath, mimeType)
 	if strings.HasPrefix(mimeType, "video/") {
 		// 是视频
 		return true
