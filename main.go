@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/qicfan/backup-server/controllers"
 	"github.com/qicfan/backup-server/helpers"
@@ -20,6 +21,8 @@ var PublishDate string = "2025-08-26"
 var IsRelease bool = false
 
 func main() {
+	cstZone := time.FixedZone("CST", 8*3600)
+	time.Local = cstZone
 	getRootDir()
 	logger := helpers.NewLogger("web.log")
 	helpers.AppLogger = helpers.NewLogger("app.log")
