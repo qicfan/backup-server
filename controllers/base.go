@@ -15,6 +15,8 @@ type APIResponseCode int
 const (
 	Success APIResponseCode = iota
 	BadRequest
+	TerminalConnection = 3 // 用于WebSocket连接断开
+	ContinueTransfer   = 4 // 用于WebSocket继续传输
 )
 
 type APIResponse[T any] struct {
