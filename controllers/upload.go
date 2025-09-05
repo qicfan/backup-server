@@ -81,7 +81,9 @@ func HandleUpload(c *gin.Context) {
 			helpers.AppLogger.Error("Unmarshal error:", err)
 			continue
 		}
-		helpers.AppLogger.Infof("收到文件传输信息：%d/%d => %s", chunk.ChunkIndex+1, chunk.ChunkCount, chunk.FileName)
+		if chunk.ChunkIndex == 0 {
+			helpers.AppLogger.Infof("收到文件传输信息：%d/%d => %s, checksum: %s", chunk.ChunkIndex+1, chunk.ChunkCount, chunk.FileName, chunk.Checksum)
+		}
 		// 再收二进制分片数据
 		mt, rawData, err := conn.ReadMessage()
 		if err != nil {

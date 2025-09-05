@@ -120,6 +120,7 @@ func HandleChecksumExists(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, APIResponse[any]{Code: http.StatusInternalServerError, Message: err.Error(), Data: nil})
 		return
 	}
+	helpers.AppLogger.Infof("Check checksum exists: %s : %v", checksum, exists)
 	c.JSON(http.StatusOK, APIResponse[map[string]bool]{Code: Success, Message: "", Data: map[string]bool{"exists": exists}})
 }
 

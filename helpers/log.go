@@ -21,7 +21,7 @@ func NewLogger(logFileName string) *logrus.Logger {
 	writer, err := rotatelogs.New(
 		logFile+".%Y%m%d%H%M",
 		rotatelogs.WithLinkName(logFile),
-		rotatelogs.WithRotationSize(1*1024*1024), // 1MB
+		rotatelogs.WithRotationSize(10*1024*1024), // 10MB
 		rotatelogs.WithRotationCount(5),
 	)
 	if err != nil {
