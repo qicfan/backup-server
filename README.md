@@ -22,6 +22,7 @@ docker run -d \
 	-e USERNAME=admin \
 	-e PASSWORD=admin \
   -e PORT=12334 \
+  -e UPLOAD_ROOT_DIR=/upload \
 	-v /your/upload:/upload \
 	-v /your/config:/app/config \
 	qicfan/backup-server:latest
@@ -43,6 +44,7 @@ docker run -d \
 | `USERNAME`   | `admin` | 登录的用户名 |
 | `PASSWORD`   | `admin` | 登录的密码 |
 | `PORT`   | `12334` | WEB服务的端口号，不要改动除非有特殊需求 |
+| `UPLOAD_ROOT_DIR`   | `/upload` | 上传文件的根目录，不要改动除非有特殊需求 |
 
 ## 端口说明
 
@@ -78,6 +80,7 @@ services:
       - USERNAME=admin
       - PASSWORD=admin
       - PORT=12334
+      - UPLOAD_ROOT_DIR=/upload
     volumes:
       - /your/upload:/upload
       - /your/config:/app/config
