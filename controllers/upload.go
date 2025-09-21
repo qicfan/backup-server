@@ -131,7 +131,7 @@ func HandleUpload(c *gin.Context) {
 		if complete {
 			targetFileFd.Close()
 			targetFileFd = nil
-			helpers.AppLogger.Infof("文件 %s 上传完成.", targetFile)
+			helpers.AppLogger.Infof("文件 %s 所有分片上传完成. 开始合并文件并插入数据库", targetFile)
 			// 插入数据库
 			photoType := chunk.Type
 			livePhotoVideoPath := chunk.LivePhotoVideoPath
@@ -160,7 +160,9 @@ func HandleUpload(c *gin.Context) {
 			// 通知客户端上传完成
 			resp := APIResponse[map[string]string]{Code: Success, Message: "上传完成", Data: map[string]string{"path": chunk.FileName}}
 			msg, _ := json.Marshal(resp)
+			helpers.AppLogger.Infof("文件 %s 上传返回数据: %s", targetFile, string(msg))
 			_ = conn.WriteMessage(websocket.TextMessage, msg)
+			helpers.AppLogger.Infof("文件 %s 上传完成.", targetFile)
 		}
 	}
 }
