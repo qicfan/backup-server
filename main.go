@@ -64,16 +64,18 @@ func main() {
 		port = "12334"
 	}
 	addr := ":" + port
-	fmt.Printf("WebSocket server started at %s (SSL supported)\n", addr)
+
 	certFile := filepath.Join(helpers.RootDir, "config", "server.crt")
 	keyFile := filepath.Join(helpers.RootDir, "config", "server.key")
 	if helpers.FileExists(certFile) && helpers.FileExists(keyFile) {
+		fmt.Printf("WebSocket server started at %s (SSL supported)\n", addr)
 		err := r.RunTLS(addr, certFile, keyFile)
 		if err != nil {
 			fmt.Println("ListenAndServeTLS error:", err)
 		}
 		return
 	}
+	fmt.Printf("WebSocket server started at %s (SSL not supported)\n", addr)
 	// 没有证书则回退到普通 HTTP
 	weberr := r.Run(addr)
 	if weberr != nil {
