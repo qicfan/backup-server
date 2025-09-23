@@ -159,7 +159,7 @@ func FileHeadSHA1(path string) (string, error) {
 }
 
 func Base64Decode(s string) (string, error) {
-	decoded, err := base64.URLEncoding.DecodeString(s)
+	decoded, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
 		return "", err
 	}
