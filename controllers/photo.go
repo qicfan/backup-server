@@ -28,20 +28,20 @@ type DownloadQuery struct {
 // http://yourserver/photo/thumbnail/MovieBackup%2FHuawei%20Pura%20X%2F2025%2F8%2F27%2F1.jpg/100x100
 func HandleGetThumbnail(c *gin.Context) {
 	path := c.Param("path") // 相对路径，不以 / 开头，相对helpers.UPLOAD_ROOT_DIR的路径，需要做base64_decode
-	decodedPath, err := helpers.Base64Decode(path)
+	urldecodePath, _ := url.QueryUnescape(path)
+	decodedPath, err := helpers.Base64Decode(urldecodePath)
 	if err != nil {
 		helpers.AppLogger.Errorf("路径解码失败: %v", err)
 		c.JSON(http.StatusBadRequest, APIResponse[any]{Code: BadRequest, Message: "路径解码失败", Data: nil})
 		return
 	}
-	decodedPath, _ = url.QueryUnescape(decodedPath)
 	path = decodedPath
 	fullPath := filepath.Join(helpers.UPLOAD_ROOT_DIR, path)
 	size := c.Param("size") // 尺寸 100x100格式
 	helpers.AppLogger.Infof("获取缩略图: %s, 尺寸: %s", path, size)
 	// 检查path是否存在
 	if !helpers.FileExists(fullPath) {
-		helpers.AppLogger.Errorf("检查照片路径失败: %v", err)
+		helpers.AppLogger.Errorf("照片 %s 不存在", fullPath)
 		c.JSON(http.StatusNotFound, APIResponse[any]{Code: BadRequest, Message: "照片未找到", Data: nil})
 		return
 	}

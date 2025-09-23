@@ -23,6 +23,7 @@ var IsRelease bool = false
 func main() {
 	cstZone := time.FixedZone("CST", 8*3600)
 	time.Local = cstZone
+	fmt.Printf("当前版本号:%s, 发布日期:%s\n", Version, PublishDate)
 	getRootDir()
 	logger := helpers.NewLogger("web.log")
 	helpers.AppLogger = helpers.NewLogger("app.log")
