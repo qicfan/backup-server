@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -36,27 +37,27 @@ func JWTAuthMiddleware() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		authHeader := c.Request.Header.Get("Authorization")
 		if authHeader == "" {
-			// c.JSON(http.StatusUnauthorized, APIResponse[any]{Code: BadRequest, Message: "Token不存在", Data: nil})
-			// c.Abort()
-			// return
+			c.JSON(http.StatusUnauthorized, APIResponse[any]{Code: BadRequest, Message: "Token不存在", Data: nil})
+			c.Abort()
+			return
 		}
 		// 按空格分割
 		parts := strings.Split(authHeader, ".")
 		if len(parts) != 3 {
-			// c.JSON(http.StatusUnauthorized, APIResponse[any]{Code: BadRequest, Message: "Token格式有误", Data: nil})
-			// c.Abort()
-			// return
+			c.JSON(http.StatusUnauthorized, APIResponse[any]{Code: BadRequest, Message: "Token格式有误", Data: nil})
+			c.Abort()
+			return
 		}
-		// tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
-		// loginUser, err := ValidateJWT(tokenString)
-		// if err != nil {
-		// c.JSON(http.StatusUnauthorized, APIResponse[any]{Code: BadRequest, Message: fmt.Sprintf("Token无效：%v", err), Data: nil})
-		// c.Abort()
-		// return
-		// }
+		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
+		loginUser, err := ValidateJWT(tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, APIResponse[any]{Code: BadRequest, Message: fmt.Sprintf("Token无效：%v", err), Data: nil})
+			c.Abort()
+			return
+		}
 		// helpers.AppLogger.Infof("Authenticated user: %s", loginUser.Username)
-		// // 将当前请求的username信息保存到请求的上下文c上
-		// c.Set("username", loginUser.Username)
+		// 将当前请求的username信息保存到请求的上下文c上
+		c.Set("username", loginUser.Username)
 		c.Next() // 后续的处理函数可以用过c.Get("username")来获取当前请求的用户信息
 	}
 }
