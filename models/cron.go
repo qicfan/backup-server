@@ -5,21 +5,24 @@ import (
 	"path/filepath"
 	"strings"
 
-	"sync"
-
 	"github.com/qicfan/backup-server/helpers"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
 )
 
 var GlobalCron *cron.Cron
-var refreshPhotoCollectionLock sync.Mutex
+var refreshPhotoCollectionLock bool = false
 
 func RefreshPhotoCollection() {
-	if !refreshPhotoCollectionLock.TryLock() {
-		helpers.AppLogger.Warn("RefreshPhotoCollection 正在执行，跳过本次调度")
+	if refreshPhotoCollectionLock {
+		helpers.AppLogger.Warn("扫描本地文件任务 正在执行，跳过本次调度")
 		return
 	}
+	helpers.AppLogger.Infof("扫描本地文件任务 开始执行")
+	refreshPhotoCollectionLock = true
+	defer func() {
+		refreshPhotoCollectionLock = false
+	}()
 	// 查询数据库中的所有数据
 	// 生成路径到ID的映射
 	// 如果本地存在则跳过，否则插入，然后删除映射关系
@@ -30,7 +33,6 @@ func RefreshPhotoCollection() {
 	for _, p := range photos {
 		dbPathMap[p.Path] = p.Checksum
 	}
-	defer refreshPhotoCollectionLock.Unlock()
 	filepath.Walk(helpers.UPLOAD_ROOT_DIR, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
@@ -125,6 +127,7 @@ func RefreshPhotoCollection() {
 			return db.Where("path = ?", p).Delete(&Photo{}).Error
 		})
 	}
+	helpers.AppLogger.Infof("扫描本地文件任务 执行完成")
 }
 
 // 初始化定时任务
@@ -134,7 +137,7 @@ func InitCron() {
 	}
 	GlobalCron = cron.New()
 
-	GlobalCron.AddFunc("*/30 * * * *", func() {
+	GlobalCron.AddFunc("*/5 * * * *", func() {
 		// 每30分钟刷新照片集合
 		// helpers.AppLogger.Info("刷新照片集合")
 		RefreshPhotoCollection()
